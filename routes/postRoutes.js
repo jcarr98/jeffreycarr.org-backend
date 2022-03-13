@@ -23,7 +23,6 @@ module.exports = (app, pool) => {
                     if(err) {
                         if(err.errno === 1062) {
                             console.log("Duplication error - ignore");
-                            console.log(result);
                         } else {
                             console.log("Error in category insertion");
                             console.log(err);
@@ -55,11 +54,15 @@ module.exports = (app, pool) => {
     
                         connection.query(ingredientsString, function(err) {
                             if(err) {
-                                console.log("Error in ingredients insertion");
-                                console.log(err);
-                                connection.rollback();
-                                connection.release();
-                                return false;
+                                if(err.errno === 1062) {
+                                    console.log("Duplication error - ignore");
+                                } else {
+                                    console.log("Error in ingredients insertion");
+                                    console.log(err);
+                                    connection.rollback();
+                                    connection.release();
+                                    return false;
+                                }
                             }
 
                             //* Insert rIngredients *\\
