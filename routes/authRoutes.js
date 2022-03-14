@@ -1,30 +1,33 @@
-const { OAuth2Client } = require('google-auth-library');
-const client = new OAuth2Client(process.env.OAUTH_ID);
-
-const googleAuth = async (token) => {
-    const ticket = await client.verifyIdToken({
-        idToken: token,
-        audience: process.env.OAUTH_ID
-    });
-    
-    const payload = ticket.getPayload();
-
-    return payload;
-}
+const { googleAuth } = require("../functions/auth");
 
 module.exports = (app) => {
     app.get('/api/auth/validUser', async (req, res) => {
+        // Pull authorized users
+        let authedUsersQuery = await pool.query("SELECT email FROM users");
+        let authedUsers = authedUsersQuery.rows
 
         // Check token is valid
         let payload = await googleAuth(req.query.tokenId);
 
-        if(payload.email === 'jeffrey.carr98@gmail.com') {
-            console.log("Valid account");
-            res.send(true);
-        } else {
-            console.log("Invalid account");
-            console.log
+        if(payload === null) {
             res.send(false);
+            return;
         }
+
+        let authed = false;
+        for(let i = 0; i < authedUsers.length; i++) {
+            if(authedUsers[i].email === payload.email) {
+                authed = true;
+                break;
+            }
+        }
+
+        if(authed) {
+            console.log(`Admin ${payload.email} successfully logged in`);
+        } else {
+            console.log(`User ${payload.email} attempted to log in as admin and failed`);
+        }
+
+        res.send(authed);
     });
 }
