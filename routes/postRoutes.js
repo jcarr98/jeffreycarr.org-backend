@@ -1,64 +1,9 @@
-const { _infoTransformers } = require("passport/lib");
+const { googleAuth } = require("../functions/auth");
+const transactions = require("../functions/transactions");
 
 module.exports = (app, pool) => {
-    async function transaction(recipe, category) {
-        // Get connection from pool
-        // Don't need to try/catch because client will just be undefined on failure
-        const client = await pool.connect();
-
-        try {
-            console.log("Beginning transaction");
-            await client.query('BEGIN');
-
-            let categoryResult = await client.query("INSERT INTO categories (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id", [category]);
-            let categoryId;
-            if(categoryResult.rows.length === 0) {
-                let categoryIdQuery = await client.query("SELECT id FROM categories WHERE name=$1", [category]);
-                categoryId = categoryIdQuery.rows[0].id;
-            } else {
-                categoryId = categoryResult.rows[0].id;
-            }
-
-            let recipeResult = await client.query("INSERT INTO recipes (name, details, category) VALUES ($1, $2, (SELECT id FROM categories WHERE name=$3)) RETURNING id", [recipe.name, recipe.details, category]);
-            let recipeId = recipeResult.rows[0].id;
-
-            // Insert ingredients and rIngredients
-            for(let i = 0; i < recipe.ingredients.length; i++) {
-                let ingredient = recipe.ingredients[i];
-                // Insert into ingredients table
-                let ingredientResult = await client.query("INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT DO NOTHING RETURNING id", [ingredient.name]);
-                let ingredientId;
-                if(ingredientResult.rows.length === 0) {
-                    let ingredientIdQuery = await client.query("SELECT id FROM ingredients WHERE name=$1", [ingredient.name]);
-                    ingredientId = ingredientIdQuery.rows[0].id;
-                } else {
-                    ingredientId = ingredientResult.rows[0].id;
-                }
-                // Insert into rIngredients table
-                await client.query("INSERT INTO rIngredients (recipe, ingredient, style, amount, optional) VALUES ($1, $2, $3, $4, $5)", [recipeId, ingredientId, ingredient.style, ingredient.amount, ingredient.optional]);
-            }
-
-            for(let i = 0; i < recipe.directions.length; i++) {
-                let direction = recipe.directions[i];
-                await client.query("INSERT INTO directions (recipe, step, step_num, optional) VALUES ($1, $2, $3, $4)", [recipeId, direction.step, direction.step_num, direction.optional]);
-            }
-
-            console.log("Committing transaction");
-            await client.query('COMMIT');
-            console.log("Recipe saved to database");
-        } catch(e) {
-            await client.query('ROLLBACK');
-            console.log("Error in transaction");
-            console.log(e);
-        } finally {
-            client.release();
-        }
-
-        return 'Finished';
-    }
-
     app.post('/api/createRecipe', async (req, res) => {
-        console.log(`Received post request for ${req.body.name}`);
+        console.log(`Received CREATE request for ${req.body.name}`);
 
         // Configure category
         let category;
@@ -79,7 +24,53 @@ module.exports = (app, pool) => {
             category = req.body.category;
         }
 
-        let result = await transaction(req.body, category);
-        console.log(result);
+        let result = await transactions.createRecipe(pool, req.body, category);
+        
+        result ? console.log("CREATE success") : console.log("CREATE failures");
+
+        res.send(result);
     });
+
+    app.post('/api/deleteRecipe', async (req, res) => {
+        console.log("Received DELETE request");
+        // Get required data
+        let recipeId, token;
+        try {
+            recipeId = req.body.data.recipeId;
+            token = req.body.data.token;
+        } catch (e) {
+            console.log("Error retrieving data");
+            console.log(e);
+            return;
+        }
+
+        // Confirm user is authorized
+        let authUserRequest = await pool.query("SELECT email FROM users WHERE delete_recipe='t'");
+        let authedUsers = authUserRequest.rows;
+        console.log(`Authed users:`);
+        console.log(authUserRequest.rows);
+        let payload = await googleAuth(token);
+
+        let authed = false;
+        for(let i = 0; i < authedUsers.length; i++) {
+            if(authedUsers[i].email === payload.email) {
+                authed = true;
+                break;
+            }
+        }
+
+        if(authed) {
+            console.log("User is authorized to delete");
+        } else {
+            console.log("User is not authorized to delete");
+            return;
+        }
+
+        // Perform delete transaction
+        let result = await transactions.deleteRecipe(pool, recipeId);
+
+        result ? console.log("DELETE success") : console.log("DELETE failure");
+
+        res.send(result);
+    })
 }
