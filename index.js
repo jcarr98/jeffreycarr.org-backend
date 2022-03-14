@@ -1,7 +1,7 @@
 // Imports
 const express = require('express');
 const cors = require('cors');
-const mysql = require('mysql');
+const { Pool } = require('pg');
 
 if(process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
@@ -20,7 +20,9 @@ app.use(cors(corsOptions));
 // Set up server
 const PORT = process.env.PORT || 5001;
 
-let pool = mysql.createPool(process.env.DB_URL);
+// Connect to DB
+const connectionString = process.env.DB_URL;
+const pool = new Pool({connectionString});
 
 require('./routes/getRoutes')(app, pool);
 require('./routes/postRoutes')(app, pool);

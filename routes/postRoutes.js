@@ -2,132 +2,63 @@ const { _infoTransformers } = require("passport/lib");
 
 module.exports = (app, pool) => {
     async function transaction(recipe, category) {
-        console.log(`Inserting ${category}`);
-        // Begin transaction
-        return pool.getConnection(function(err, connection) {
-            if(err) {
-                console.log("Error getting connection");
-                connection.release();
-                return false;
+        // Get connection from pool
+        // Don't need to try/catch because client will just be undefined on failure
+        const client = await pool.connect();
+
+        try {
+            console.log("Beginning transaction");
+            await client.query('BEGIN');
+
+            let categoryResult = await client.query("INSERT INTO categories (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id", [category]);
+            let categoryId;
+            if(categoryResult.rows.length === 0) {
+                let categoryIdQuery = await client.query("SELECT id FROM categories WHERE name=$1", [category]);
+                categoryId = categoryIdQuery.rows[0].id;
+            } else {
+                categoryId = categoryResult.rows[0].id;
             }
-            return connection.beginTransaction(function(err) {
-                if(err) {
-                    console.log(err);
-                    connection.release();
-                    return false;
+
+            let recipeResult = await client.query("INSERT INTO recipes (name, details, category) VALUES ($1, $2, (SELECT id FROM categories WHERE name=$3)) RETURNING id", [recipe.name, recipe.details, category]);
+            let recipeId = recipeResult.rows[0].id;
+
+            // Insert ingredients and rIngredients
+            for(let i = 0; i < recipe.ingredients.length; i++) {
+                let ingredient = recipe.ingredients[i];
+                // Insert into ingredients table
+                let ingredientResult = await client.query("INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT DO NOTHING RETURNING id", [ingredient.name]);
+                let ingredientId;
+                if(ingredientResult.rows.length === 0) {
+                    let ingredientIdQuery = await client.query("SELECT id FROM ingredients WHERE name=$1", [ingredient.name]);
+                    ingredientId = ingredientIdQuery.rows[0].id;
+                } else {
+                    ingredientId = ingredientResult.rows[0].id;
                 }
-    
-                //* Insert category *\\
-                connection.query("INSERT INTO categories (name) VALUES (?)", [category], function(err, result) {
-                    // Check duplication error - just ignore it
-                    if(err) {
-                        if(err.errno === 1062) {
-                            console.log("Duplication error - ignore");
-                        } else {
-                            console.log("Error in category insertion");
-                            console.log(err);
-                            connection.rollback();
-                            connection.release();
-                            return false;
-                        }
-                    }
-    
-                    //* Insert recipe *\\
-                    connection.query("INSERT INTO recipes (name, details, category) VALUES (?, ?, (SELECT id FROM categories WHERE name=? LIMIT 1))", [recipe.name, recipe.details, category], function(err) {
-                        if(err) {
-                            console.log("Error in recipe insertion");
-                            console.log(err);
-                            connection.rollback();
-                            connection.release();
-                            return false;
-                        }
-    
-                        //* Insert ingredients *\\
-                        // Create ingredients string
-                        let ingredientsString = "INSERT INTO ingredients (name) VALUES ";
-                        for(let i = 0; i < recipe.ingredients.length; i++) {
-                            ingredientsString += `('${recipe.ingredients[i].name}')`;
-                            if(i < recipe.ingredients.length-1) {
-                                ingredientsString += ',';
-                            }
-                        }
-    
-                        connection.query(ingredientsString, function(err) {
-                            if(err) {
-                                if(err.errno === 1062) {
-                                    console.log("Duplication error - ignore");
-                                } else {
-                                    console.log("Error in ingredients insertion");
-                                    console.log(err);
-                                    connection.rollback();
-                                    connection.release();
-                                    return false;
-                                }
-                            }
+                // Insert into rIngredients table
+                await client.query("INSERT INTO rIngredients (recipe, ingredient, style, amount, optional) VALUES ($1, $2, $3, $4, $5)", [recipeId, ingredientId, ingredient.style, ingredient.amount, ingredient.optional]);
+            }
 
-                            //* Insert rIngredients *\\
-                            // Create rIngredients string
-                            let rIngredientsString = "INSERT INTO rIngredients (recipe, ingredient, style, amount, optional) VALUES ";
-                            for(let j = 0; j < recipe.ingredients.length; j++) {
-                                rIngredientsString += `((SELECT id FROM recipes WHERE name='${recipe.name}'), (SELECT id FROM ingredients WHERE name='${recipe.ingredients[j].name}'), '${recipe.ingredients[j].style}', '${recipe.ingredients[j].amount}', ${recipe.ingredients[j].optional})`;
-                                if(j < recipe.ingredients.length-1) {
-                                    rIngredientsString += ',';
-                                }
-                            }
+            for(let i = 0; i < recipe.directions.length; i++) {
+                let direction = recipe.directions[i];
+                await client.query("INSERT INTO directions (recipe, step, step_num, optional) VALUES ($1, $2, $3, $4)", [recipeId, direction.step, direction.step_num, direction.optional]);
+            }
 
-                            console.log("rIngredients");
-                            console.log(rIngredientsString);
+            console.log("Committing transaction");
+            await client.query('COMMIT');
+            console.log("Recipe saved to database");
+        } catch(e) {
+            await client.query('ROLLBACK');
+            console.log("Error in transaction");
+            console.log(e);
+        } finally {
+            client.release();
+        }
 
-                            connection.query(rIngredientsString, function(err) {
-                                if(err) {
-                                    console.log("Error in rIngredients insertion");
-                                    console.log(err);
-                                    connection.rollback();
-                                    connection.release();
-                                    return false;
-                                }
-
-                                //* Insert directions *\\
-                                // Create directions string
-                                let directionsString = "INSERT INTO directions (recipe, step, step_num, optional) VALUES ";
-                                for(let k = 0; k < recipe.directions.length; k++) {
-                                    directionsString += `((SELECT id FROM recipes WHERE name='${recipe.name}'), '${recipe.directions[k].step}', ${recipe.directions[k].step_num}, ${recipe.directions[k].optional})`;
-                                    if(k < recipe.directions.length-1) {
-                                        directionsString += ',';
-                                    }
-                                }
-
-                                connection.query(directionsString, function(err) {
-                                    if(err) {
-                                        console.log("Error in directions insertion");
-                                        console.log(err);
-                                        connection.rollback();
-                                        connection.release();
-                                        return false;
-                                    }
-
-                                    connection.commit(function(err) {
-                                        if(err) {
-                                            console.log("Error committing");
-                                            console.log(err);
-                                            connection.release();
-                                            return false;
-                                        }
-
-                                        connection.release();
-                                        return true;
-                                    })
-                                })
-                            })
-                        })
-                    });
-                });
-            });
-        })
+        return 'Finished';
     }
 
     app.post('/api/createRecipe', async (req, res) => {
-        console.log(`Received recipe '${req.body.name}'`);
+        console.log(`Received post request for ${req.body.name}`);
 
         // Configure category
         let category;
@@ -149,7 +80,6 @@ module.exports = (app, pool) => {
         }
 
         let result = await transaction(req.body, category);
-        console.log("Result:");
         console.log(result);
     });
 }
