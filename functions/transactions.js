@@ -61,9 +61,9 @@ async function createRecipe(pool, recipe, category) {
     Do NOT delete ingredients as they could be used in other recipes
 */
 async function deleteRecipe(pool, id) {
+    let result;
     // Get connection
     const client = await pool.connect();
-    let result = false;
 
     try {
         console.log("Beginning DELETE transaction");
@@ -83,25 +83,37 @@ async function deleteRecipe(pool, id) {
         let recipesResults = await client.query("DELETE FROM recipes WHERE id=$1", [id]);
 
         // Check if category is used anywhere else
-        let cQueryResult = await client.query("SELECT * FROM categories WHERE id=$1", [categoryId]);
-        if(cQueryResult.rows[0].length === 0) {
+        let categoryDeleted = false;
+        let cQueryResult = await client.query("SELECT * FROM recipes WHERE category=$1", [categoryId]);
+        if(cQueryResult.rows.length === 0) {
             let categoryResult = await client.query("DELETE FROM categories WHERE id=$1", [categoryId]);
+            categoryDeleted = true;
+
         }
 
         // Commit
         console.log("Committing DELETE transaction");
         await client.query("COMMIT");
-        result = true;
+        result = {
+            status: 1,
+            message: "Recipe successfully deleted",
+            categoryDeleted: categoryDeleted
+        };
     } catch(e) {
         console.log("Error in DELETE transaction");
 
-        // Begin transaction
+        // Roll back transaction
         await client.query("ROLLBACK");
         console.log(e);
+        result = {
+            status: -1,
+            message: "Failed to delete",
+            categoryDeleted: null
+        }
     } finally {
         client.release();
         return result;
     }
 }
 
-module.exports = { createRecipe, deleteRecipe};
+module.exports = { createRecipe, deleteRecipe };

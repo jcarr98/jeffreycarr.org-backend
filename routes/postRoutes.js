@@ -1,15 +1,58 @@
 const { googleAuth } = require("../functions/auth");
 const transactions = require("../functions/transactions");
 
+async function confirmAuth(pool, token, method) {
+    // Get all authed users for method
+    const authQ = await pool.query(`SELECT email FROM users WHERE $1='1'`, [method]);
+    const authedUsers = authQ.rows;
+
+    // Check authenticity of token provided
+    let payload, payloadEmail;
+    try {
+        payload = await googleAuth(token);
+        payloadEmail = payload.email;
+    } catch(e) {
+        console.log("Error authenticating user");
+        return false;
+    }
+
+    for(let i = 0; i < authedUsers.length; i++) {
+        if(authedUsers[i].email === payloadEmail) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 module.exports = (app, pool) => {
     app.post('/api/createRecipe', async (req, res) => {
-        console.log(`Received CREATE request for ${req.body.name}`);
+        console.log(`Received CREATE request`);
+
+        // Confirm all data is passed
+        let recipe, token;
+        try {
+            recipe = req.body.data.recipe;
+            token = req.body.data.token;
+        } catch(e) {
+            console.log("Error retrieving data");
+            console.log(e);
+            return;
+        }
+
+        // Confirm user is authenticated
+        let authed = confirmAuth(pool, token, "create_recipe");
+
+        if(!authed) {
+            console.log("User not authorized to create recipes");
+            return;
+        }
 
         // Configure category
         let category;
-        if(req.body.category === '0') {
+        if(recipe.category === '0') {
             // Validate custom name
-            let nospaces = req.body.categoryName.replace(" ", "");
+            let nospaces = recipe.categoryName.replace(" ", "");
             if(!/^[a-z]+$/i.test(nospaces)) {
                 console.log("Invalid category name");
                 res.send({
@@ -18,17 +61,27 @@ module.exports = (app, pool) => {
                 });
                 return;
             } else {
-                category = req.body.categoryName;
+                category = recipe.categoryName;
             }
         } else {
-            category = req.body.category;
+            category = recipe.category;
         }
 
-        let result = await transactions.createRecipe(pool, req.body, category);
+        let result = await transactions.createRecipe(pool, recipe, category);
         
         result ? console.log("CREATE success") : console.log("CREATE failures");
 
-        res.send(result);
+        if(result) {
+            res.send({
+                status: 1,
+                message: "Recipe added successfully!"
+            });
+        } else {
+            res.send({
+                status: -1,
+                message: "Saving recipe failed"
+            });
+        }
     });
 
     app.post('/api/deleteRecipe', async (req, res) => {
@@ -45,19 +98,7 @@ module.exports = (app, pool) => {
         }
 
         // Confirm user is authorized
-        let authUserRequest = await pool.query("SELECT email FROM users WHERE delete_recipe='t'");
-        let authedUsers = authUserRequest.rows;
-        console.log(`Authed users:`);
-        console.log(authUserRequest.rows);
-        let payload = await googleAuth(token);
-
-        let authed = false;
-        for(let i = 0; i < authedUsers.length; i++) {
-            if(authedUsers[i].email === payload.email) {
-                authed = true;
-                break;
-            }
-        }
+        let authed = confirmAuth(pool, token, "delete_recipe");
 
         if(authed) {
             console.log("User is authorized to delete");

@@ -1,6 +1,6 @@
 const { googleAuth } = require("../functions/auth");
 
-module.exports = (app) => {
+module.exports = (app, pool) => {
     app.get('/api/auth/validUser', async (req, res) => {
         // Pull authorized users
         let authedUsersQuery = await pool.query("SELECT email FROM users");

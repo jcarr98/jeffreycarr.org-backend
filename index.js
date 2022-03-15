@@ -26,7 +26,7 @@ const pool = new Pool({connectionString});
 
 require('./routes/getRoutes')(app, pool);
 require('./routes/postRoutes')(app, pool);
-require('./routes/authRoutes')(app);
+require('./routes/authRoutes')(app, pool);
 
 app.listen(PORT, () => {
     console.log("Listening on port: ", PORT);
