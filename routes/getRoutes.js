@@ -40,6 +40,6 @@ module.exports = (app, pool) => {
     // Route to get ingredients for a recipe
     app.get("/api/getIngredients/:id", (req, res) => {
         const id = req.params.id;
-        performQuery("SELECT * FROM ingredients, rIngredients WHERE rIngredients.recipe=$1 AND rIngredients.ingredient=ingredients.id", [id], res);
+        performQuery("SELECT * FROM ingredients, rIngredients WHERE rIngredients.recipe=$1 AND rIngredients.ingredient=ingredients.id ORDER BY name", [id], res);
     });
 }
