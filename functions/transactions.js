@@ -1,4 +1,4 @@
-async function createRecipe(pool, recipe, category) {
+async function createRecipe(pool, recipe, category, author) {
     // Get connection from pool
     // Don't need to try/catch because client will just be undefined on failure
     const client = await pool.connect();
@@ -17,7 +17,7 @@ async function createRecipe(pool, recipe, category) {
             categoryId = categoryResult.rows[0].id;
         }
 
-        let recipeResult = await client.query("INSERT INTO recipes (name, details, category) VALUES ($1, $2, (SELECT id FROM categories WHERE name=$3)) RETURNING id", [recipe.name, recipe.details, category]);
+        let recipeResult = await client.query("INSERT INTO recipes (name, details, category, author) VALUES ($1, $2, (SELECT id FROM categories WHERE name=$3), (SELECT id FROM users WHERE email=$4)) RETURNING id", [recipe.name, recipe.details, category, author]);
         let recipeId = recipeResult.rows[0].id;
 
         // Insert ingredients and rIngredients

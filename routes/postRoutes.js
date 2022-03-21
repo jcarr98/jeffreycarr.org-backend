@@ -1,23 +1,14 @@
+const { auth } = require("google-auth-library");
 const { googleAuth } = require("../functions/auth");
 const transactions = require("../functions/transactions");
 
-async function confirmAuth(pool, token, method) {
+async function confirmAuth(pool, email) {
     // Get all authed users for method
-    const authQ = await pool.query(`SELECT email FROM users WHERE $1='1'`, [method]);
+    const authQ = await pool.query(`SELECT email FROM users WHERE admin='t'`);
     const authedUsers = authQ.rows;
 
-    // Check authenticity of token provided
-    let payload, payloadEmail;
-    try {
-        payload = await googleAuth(token);
-        payloadEmail = payload.email;
-    } catch(e) {
-        console.log("Error authenticating user");
-        return false;
-    }
-
     for(let i = 0; i < authedUsers.length; i++) {
-        if(authedUsers[i].email === payloadEmail) {
+        if(authedUsers[i].email === email) {
             return true;
         }
     }
@@ -40,8 +31,16 @@ module.exports = (app, pool) => {
             return;
         }
 
-        // Confirm user is authenticated
-        let authed = confirmAuth(pool, token, "create_recipe");
+        // Get payload from Google
+        let payload, authed;
+        try {
+            payload = await googleAuth(token);
+            authed = await confirmAuth(pool, payload.email);
+        } catch(e) {
+            console.log('Error confirming auth token');
+            console.log(e);
+            return;
+        }
 
         if(!authed) {
             console.log("User not authorized to create recipes");
@@ -67,7 +66,7 @@ module.exports = (app, pool) => {
             category = recipe.category;
         }
 
-        let result = await transactions.createRecipe(pool, recipe, category);
+        let result = await transactions.createRecipe(pool, recipe, category, payload.email);
         
         result ? console.log("CREATE success") : console.log("CREATE failures");
 
