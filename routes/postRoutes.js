@@ -97,12 +97,18 @@ module.exports = (app, pool) => {
         }
 
         // Confirm user is authorized
-        let authed = confirmAuth(pool, token, "delete_recipe");
+        let payload, authed;
+        try {
+            payload = await googleAuth(token);
+            authed = await confirmAuth(pool, payload.email);
+        } catch(e) {
+            console.log('Error confirming auth token');
+            console.log(e);
+            return;
+        }
 
-        if(authed) {
-            console.log("User is authorized to delete");
-        } else {
-            console.log("User is not authorized to delete");
+        if(!authed) {
+            console.log("User not authorized to delete recipes");
             return;
         }
 
