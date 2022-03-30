@@ -9,7 +9,10 @@ module.exports = (app, pool) => {
             authedUsers = authedUsersQuery.rows;
         } catch(e) {
             console.log("Error with auth");
-            res.send(false);
+            res.send({
+                status: false,
+                user: null
+            });
             return;
         }
 
@@ -20,14 +23,20 @@ module.exports = (app, pool) => {
             tokenId = req.query.tokenId;
         } catch(e) {
             console.log("Error retrieving token");
-            res.send(false);
+            res.send({
+                status: false,
+                user: null
+            });
             return;
         }
 
         let payload = await googleAuth(tokenId);
 
         if(payload === null) {
-            res.send(false);
+            res.send({
+                status: false,
+                user: null
+            });
             return;
         }
 
@@ -41,10 +50,16 @@ module.exports = (app, pool) => {
 
         if(authed) {
             console.log(`Admin ${payload.email} successfully logged in`);
+            res.send({
+                status: true,
+                user: payload.name
+            });
         } else {
             console.log(`User ${payload.email} attempted to log in as admin and failed`);
+            res.send({
+                status: false,
+                user: null
+            })
         }
-
-        res.send(authed);
     });
 }
