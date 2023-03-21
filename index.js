@@ -1,6 +1,6 @@
 // Imports
-const https = require('https');
-const fs = require('fs');
+const https = require('https'); // DEV ONLY
+const fs = require('fs'); // DEV ONLY
 const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
@@ -46,11 +46,18 @@ require('./routes/getRoutes')(app, pool);
 require('./routes/postRoutes')(app, pool);
 require('./routes/authRoutes')(app, pool);
 
-const httpsOptions = {
-    key: fs.readFileSync('certs/localhost+1-key.pem'),
-    cert: fs.readFileSync('certs/localhost+1.pem')
-};
-
 // Set up server
 const PORT = process.env.PORT || 5001;
-https.createServer(httpsOptions, app).listen(PORT, console.log(`Secure server running on port ${PORT}`));
+if(process.env.NODE_ENV !== 'production') {
+    // DEV ONLY
+    const httpsOptions = {
+        key: fs.readFileSync('certs/localhost+1-key.pem'),
+        cert: fs.readFileSync('certs/localhost+1.pem')
+    };
+
+    https.createServer(httpsOptions, app).listen(PORT, console.log(`Secure server running on port ${PORT}`));
+} else {
+    app.listen(PORT, () => {
+        console.log("Listening on port: ", PORT);
+    });
+}
