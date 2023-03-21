@@ -19,7 +19,7 @@ function generateTokens() {
 async function sendTokenRequest(code) {
     console.log("Sending token request to Google");
     // Build token request
-    let requestData = `code=${code}&client_id=${process.env.GOOGLE_CLIENT_ID}&client_secret=${process.env.GOOGLE_CLIENT_SECRET}&redirect_uri=${process.env.BASE_URL}/login.html&grant_type=authorization_code`;
+    let requestData = `code=${code}&client_id=${process.env.GOOGLE_CLIENT_ID}&client_secret=${process.env.GOOGLE_CLIENT_SECRET}&redirect_uri=${process.env.BASE_URL}/login&grant_type=authorization_code`;
     
     // Create HTTPS options
     let options = {
