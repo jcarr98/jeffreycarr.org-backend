@@ -1,6 +1,5 @@
-const { auth } = require("google-auth-library");
-const { googleAuth } = require("../functions/auth");
 const transactions = require("../functions/transactions");
+const post = require('../functions/post');
 
 async function confirmAuth(pool, email) {
     // Get all authed users for method
@@ -17,7 +16,7 @@ async function confirmAuth(pool, email) {
 }
 
 module.exports = (app, pool) => {
-    app.post('/api/createRecipe', async (req, res) => {
+    app.post('/api/post/createRecipe', async (req, res) => {
         console.log(`Received CREATE request`);
 
         // Confirm all data is passed
@@ -83,7 +82,7 @@ module.exports = (app, pool) => {
         }
     });
 
-    app.post('/api/deleteRecipe', async (req, res) => {
+    app.post('/api/post/deleteRecipe', async (req, res) => {
         console.log("Received DELETE request");
         // Get required data
         let recipeId, token;
@@ -118,5 +117,65 @@ module.exports = (app, pool) => {
         result ? console.log("DELETE success") : console.log("DELETE failure");
 
         res.send(result);
-    })
+    });
+
+    app.post('/api/post/favorite_item', async (req, res) => {
+        console.log("[/api/favorite_item] Favoriting item");
+
+        // Check user is authenticated
+        if(!req.session.authenticated) {
+            console.error("[/api/favorite_item] User not authenticated");
+            res.send({status: 'failure'});
+            return;
+        }
+        // Confirm we have user info saved
+        if(req.session.user['user_id'] == undefined || req.session.user['user_id'] == null) {
+            console.error("[/api/favorite_item] No user data");
+            res.send({status: 'failure'});
+            return;
+        }
+
+        // Get recipe id
+        let recipeId = req.body['id'];
+
+        // Send request to DB
+        let result = await post.addFavorite(pool, recipeId, req.session.user['user_id']);
+
+        // Send result to client
+        console.log("[/api/favorite_item] Sending results to client");
+        res.send(result);
+    });
+
+    app.post("/api/post/unfavorite_item", async (req, res) => {
+        console.log("[/api/unfavorite_item] Removing item from favorites");
+
+        // Check user is authenticated
+        if(!req.session.authenticated) {
+            console.error("[/api/unfavorite_item] User is not authenticated. Reporting failure");
+            res.send({status: "failure"});
+            return;
+        }
+
+        // Confirm we have user info saved
+        if(req.session.user['user_id'] == undefined || req.session.user['user_id'] == null) {
+            console.error("[/api/unfavorite_item] No user data");
+            res.send({status: 'failure'});
+            return;
+        }
+
+        // Get recipe id
+        let recipeId = req.body['id'];
+
+        // Confirm we have an ID
+        if(recipeId == undefined || recipeId == null) {
+            console.error("[/api/unfavorite_item] Malformed body. Reporting failure");
+            res.send({status: "failure"});
+        }
+
+        // Send request to DB
+        let result = await post.removeFavorite(pool, req.body['id'], req.session.user['user_id']);
+
+        // Return result to client
+        res.send(result);
+    });
 }

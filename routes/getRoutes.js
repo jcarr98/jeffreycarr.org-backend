@@ -1,45 +1,92 @@
+const get = require('../functions/get');
+
 module.exports = (app, pool) => {
-    // Perform general GET query
-    function performQuery(query, queryValues, res) {
-        pool.query(query, queryValues, (err, result) => {
-            if(err) {
-                console.log(err);
-            }
+    app.get("/api/get/categories", async (req, res) => {
+        console.log("[/api/get/categories] Received request for categories");
+        let categories = await get.getCategories(pool);
 
-            res.send(result.rows);
-        });
-    }
-
-    // Route to get all recipes
-    app.get("/api/get", (req,res) => {
-        performQuery("SELECT * FROM recipes ORDER BY name", [], res);
+        if(categories['status'] == "success") {
+            console.log("[/api/get/categories] Sending categories to client");
+            res.send({status: "success", data: categories['data']});
+        } else {
+            console.error("[/api/get/categories] Failed to retrieve categories");
+            res.send({status: "failure"});
+        }
     });
 
-    // Route to get one recipe
-    app.get("/api/get/:id", (req,res) => {
-        const id = req.params.id;
-        performQuery("SELECT * FROM recipes WHERE id=$1", [id], res);
-    });
+    app.get("/api/get/favorites", async (req, res) => {
+        console.log("[/api/get/favorites] Getting favorites from DB");
 
-    // Get all categories
-    app.get("/api/getCategories", (req, res) => {
-        performQuery("SELECT * FROM categories ORDER BY name", [], res);
+        // Check if this user is authenticated
+        if(!req.session.authenticated) {
+            console.error("[/api/get/favorites] Failure. User is not authenticated");
+            res.send({status: "failure"});
+            return;
+        }
+
+        // Retrieve user favorites
+        let favorites = await get.getFavorites(pool, req.session.user['user_id']);
+        res.send(favorites);
     })
 
-    // Route to get directions for a recipe
-    app.get("/api/getDirections/:id", (req, res) => {
-        const id = req.params.id;
-        performQuery("SELECT * FROM directions WHERE recipe=$1 ORDER BY step_num", [id], res);
+    app.get("/api/get/recipes", async (req, res) => {
+        // Collect parameters
+        let page = parseInt(req.query.page, 10);
+        let limit = parseInt(req.query.limit, 10);
+
+        console.log(`[/api/get/recipes] Received request for ${limit} recipes`);
+
+        // Confirm valid parameters
+        if(isNaN(page) || isNaN(limit)) {
+            console.error("Invalid parameters provided to get/recipes");
+            res.send({status: "failure"});
+            return;
+        }
+
+        // Calculate offset
+        let offset = (page-1) * limit;
+
+        // Perform query
+        let results = await get.getRecipes(pool, offset, limit);
+
+        if(results['status'] == "success") {
+            console.log("[/api/get/recipes] Sending recipes to client");
+            res.send({status: "success", numRecipes: results['numRecipes'], data: results['data']});
+        } else {
+            console.log("[/api/get/recipes] Failed to retrieve recipes");
+            res.send({status: "failure"});
+        }
     });
 
-    // Route to get all ingredients
-    app.get("/api/getIngredients", (req, res) => {
-        performQuery("SELECT name FROM ingredients ORDER BY name", [], res);
-    })
+    app.get("/api/get/random", async (req, res) => {
+        console.log("[/api/get/random] Received request for random recipe");
 
-    // Route to get ingredients for a recipe
-    app.get("/api/getIngredients/:id", (req, res) => {
-        const id = req.params.id;
-        performQuery("SELECT * FROM ingredients, rIngredients WHERE rIngredients.recipe=$1 AND rIngredients.ingredient=ingredients.id ORDER BY name", [id], res);
+        let randomRecipe = await get.getRandomRecipe(pool);
+
+        if(randomRecipe['status'] == "success") {
+            console.log(`[/api/get/random] Got ${randomRecipe['data']['recipe_name']}. Sending to client`);
+        } else {
+            console.error("[/api/get/random] Failed to retrieve random recipe");
+        }
+
+        res.send(randomRecipe);
+    });
+
+    app.get("/api/get/search", async (req, res) => {
+        // Confirm search
+        if(req.query.search == undefined) {
+            console.error("Received malformed search request. Reporting failure");
+            res.send({ status: "failure" });
+            return;
+        }
+
+        console.log(`Received search request for ${req.query.search}`);
+
+        // Search DB
+        let results = await get.searchDB(pool, req.query.search);
+
+        results['status'] == "success" ? console.log("Retrieved search results from database") : console.error("Failed to retrieve search results from server.");
+
+        res.send(results);
     });
 }

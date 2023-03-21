@@ -1,0 +1,2 @@
+# Setting up server
+In `index.js`, you'll see that there is an https server being set up. This is a required set for using cookies. To set up the HTTPS server, a certificate and key are required to be set up for `localhost`. Follow [this guide](https://technixleo.com/create-locally-trusted-ssl-certificates-with-mkcert-on-windows/) to set up your own certificates for development. Place your generated certificates in `certs/`

@@ -116,4 +116,69 @@ async function deleteRecipe(pool, id) {
     }
 }
 
-module.exports = { createRecipe, deleteRecipe };
+/*
+    Gets user by email address
+*/
+async function getUser(pool, email) {
+    console.log("Getting user information");
+    const client = await pool.connect();
+
+    let result;
+    try {
+        let user = await client.query("SELECT * FROM users WHERE email=$1", [email]);
+        result = {status: "success", data: user};
+    } catch(e) {
+        console.error("Error with retrieving user");
+        console.error(e);
+        result = {status: "failure"};
+    } finally {
+        client.release();
+        return result;
+    }
+}
+
+// Update user logged in time
+async function updateLogin(pool, uuid) {
+    console.log("Updating user login");
+    const client = await pool.connect();
+    const date = new Date();
+
+    let result;
+    try {
+        await client.query("UPDATE users SET last_login=$1 WHERE user_id=$2", [date.toISOString(), uuid]);
+        result = {status: "success"};
+    } catch(e) {
+        // No need to rollback here because we are only updating one record
+        console.error("Error updating user's last login time")
+        console.error(e);
+        result = {status: "failure"};
+    } finally {
+        client.release();
+        return result;
+    }
+}
+
+// Create new user
+async function createUser(pool, fname=null, lname=null, email) {
+    console.log("Creating new user");
+    const client = await pool.connect();
+    
+    let result;
+    try {
+        let newUser = await client.query("INSERT INTO users (fname, lname, email) VALUES ($1, $2, $3) RETURNING user_id", [fname, lname, email]);
+        result = {
+            status: "sucess", 
+            data: newUser['rows'][0]['user_id']
+        };
+    } catch(e) {
+        // No need to rollback here because we are only creating one record
+        console.error("Error creating new user");
+        console.error(e);
+        result = {status: "failure"};
+    } finally {
+        client.release();
+        return result;
+    }
+}
+
+module.exports = { createRecipe, deleteRecipe, getUser, updateLogin, createUser };
