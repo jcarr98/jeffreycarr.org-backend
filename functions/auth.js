@@ -17,7 +17,7 @@ function generateTokens() {
 }
 
 async function sendTokenRequest(code) {
-    console.log("Sending token request to Google");
+    console.log("[sendTokenRequest] Sending token request to Google");
     // Build token request
     let requestData = `code=${code}&client_id=${process.env.GOOGLE_CLIENT_ID}&client_secret=${process.env.GOOGLE_CLIENT_SECRET}&redirect_uri=${process.env.BASE_URL}/login.html&grant_type=authorization_code`;
     
@@ -32,9 +32,18 @@ async function sendTokenRequest(code) {
     };
 
     // Send HTTP request
-    let answer = await doRequest(options, requestData);
+    let finalResult;
+    try {
+        let answer = await doRequest(options, requestData);
+        finalResult = { status: "success", data: answer };
+    } catch(e) {
+        console.error("Error sending request to Google");
+        console.error(e);
+        finalResult = { status: "failure", data: e };
+    }
+    
 
-    return answer;
+    return finalResult;
 }
 
 function doRequest(options, data) {
@@ -42,7 +51,8 @@ function doRequest(options, data) {
         const req = https.request(options, (res) => {
 
             if(res.statusCode != 200) {
-                reject({status: 'failure', data: 'Bad status code'});
+                console.error(res.statusCode);
+                reject("Bad status code");
             }
 
             let responseData = [];
@@ -52,12 +62,12 @@ function doRequest(options, data) {
             });
             res.on('end', () => {
                 let allData = JSON.parse(Buffer.concat(responseData).toString('utf-8'));
-                resolve({status: 'success', data: allData});
+                resolve(allData);
             });
         });
 
         req.on('error', (e) => {
-            reject(e)
+            reject(e);
         });
     
         req.write(data);
