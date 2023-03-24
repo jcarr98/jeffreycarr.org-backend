@@ -24,7 +24,14 @@ module.exports = (app, pool) => {
     app.get("/auth/tokens", (req,res) => {
         console.log("[/auth/tokens] Generating new tokens...");
         // Generate tokens
-        tokens = auth.generateTokens();
+        let tokens = auth.generateTokens();
+
+        if(tokens['status'] == "failure") {
+            console.error("Error")
+            console.error(tokens['e']);
+            res.send(tokens);
+            return;
+        }
 
         // Save CSRF to user session
         req.session.csrf = tokens['CSRF'];

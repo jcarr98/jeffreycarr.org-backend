@@ -3,17 +3,20 @@ const uuid = require('uuid');
 const https = require('https');
 
 function generateTokens() {
-    console.log("Generating tokens for client");
-    // Generate UUID (for csrf)
-    let csrf = uuid.v4();
+    console.log("[generateTokens] Generating tokens for client");
+    let finalResult;
+    try {
+        // Generate UUID (for csrf)
+        let csrf = uuid.v4();
 
-    // Generate nonce
-    let nonceArray = new Uint16Array(1);
-    crypto.getRandomValues(nonceArray);
-    let nonce = nonceArray[0];
-
-    // Return values as object
-    return {"CSRF": csrf, "nonce": nonce};
+        // Generate nonce
+        let nonceArray = new Uint16Array(1);
+        crypto.getRandomValues(nonceArray);
+        let nonce = nonceArray[0];
+        return { status: "success", CSRF: csrf, nonce: nonce };
+    } catch(e) {
+        return { status: "failure", e: e };
+    }
 }
 
 async function sendTokenRequest(code) {
@@ -32,18 +35,9 @@ async function sendTokenRequest(code) {
     };
 
     // Send HTTP request
-    let finalResult;
-    try {
-        let answer = await doRequest(options, requestData);
-        finalResult = { status: "success", data: answer };
-    } catch(e) {
-        console.error("Error sending request to Google");
-        console.error(e);
-        finalResult = { status: "failure", data: e };
-    }
-    
+    let answer = await doRequest(options, requestData);
 
-    return finalResult;
+    return answer;
 }
 
 function doRequest(options, data) {
@@ -51,8 +45,7 @@ function doRequest(options, data) {
         const req = https.request(options, (res) => {
 
             if(res.statusCode != 200) {
-                console.error(res.statusCode);
-                reject("Bad status code");
+                reject({status: 'failure', data: 'Bad status code'});
             }
 
             let responseData = [];
@@ -62,12 +55,12 @@ function doRequest(options, data) {
             });
             res.on('end', () => {
                 let allData = JSON.parse(Buffer.concat(responseData).toString('utf-8'));
-                resolve(allData);
+                resolve({status: 'success', data: allData});
             });
         });
 
         req.on('error', (e) => {
-            reject(e);
+            reject(e)
         });
     
         req.write(data);

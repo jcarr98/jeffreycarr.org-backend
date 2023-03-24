@@ -42,7 +42,7 @@ const connectionString = process.env.DB_URL;
 const pool = new Pool({connectionString});
 
 // Import routes
-require('./routes/getRoutes')(app, pool);
+require('./routes/getRoutes')(app);
 require('./routes/postRoutes')(app, pool);
 require('./routes/authRoutes')(app, pool);
 
