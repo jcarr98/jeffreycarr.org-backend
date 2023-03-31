@@ -17,7 +17,7 @@ module.exports = (app, pool) => {
     // Destroy this session
     app.get("/auth/logout", (req, res) => {
         req.session.destroy();
-        res.send({status: "success"});
+        res.send( {status: "success"} );
     })
 
     // Route to get all recipes
@@ -46,7 +46,7 @@ module.exports = (app, pool) => {
         // Confirm CSRF token
         if(req.query.csrf != req.session.csrf) {
             console.error("[/auth/google/verify_login] Incorrect CSRF Token!");
-            res.send({status: "failure"});
+            res.send({ status: "failure" });
             return;
         }
 
@@ -55,7 +55,7 @@ module.exports = (app, pool) => {
         if(result['status'] == "failure") {
             console.error("[/auth/google/verify_login] Unsuccessful request to Google")
             console.error(result['data']);
-            res.send({status: "failure"});
+            res.send({ status: "failure" });
             return;
         }
 

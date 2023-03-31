@@ -4,7 +4,6 @@ const https = require('https');
 
 function generateTokens() {
     console.log("[generateTokens] Generating tokens for client");
-    let finalResult;
     try {
         // Generate UUID (for csrf)
         let csrf = uuid.v4();
