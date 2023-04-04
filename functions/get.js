@@ -40,25 +40,46 @@ async function getCategories() {
 async function getFavorites(user_id) {
   console.log("[getFavorites] Connecting to DB");
 
+  // Get all user favorites
   const query = "SELECT rec_id FROM user_favorites WHERE user_id=$1";
   const queryValues = [user_id];
 
   let result = await doQuery(query, queryValues);
 
+  let ids;
   if(result['status'] == "success") {
-    return { status: "success", data: result['data']['rows'] };
+    ids = result['data']['rows'];
   } else {
     return { status: "failure" };
   }
+
+  // Get the names of each favorite item
+  let userFavorites = [];
+  for(let i=0; i < ids.length; i++) {
+    let recipeName = await doQuery("SELECT recipe_name FROM recipes WHERE rec_id=$1", [ids[i]['rec_id']]);
+    if(recipeName['status'] != "success") return { status: "failure" };
+
+    userFavorites.push({ rec_id: ids[i]['rec_id'], name: recipeName['data']['rows'][0]['recipe_name']});  // This is gross
+  }
+
+  return { status: "success", data: userFavorites };
 }
 
-async function getRecipes(offset, limit) {
+async function getRecipes(offset, limit, author=null) {
   console.log("[getRecipes] Connecting to DB");
+  if(author != null) console.log(`[getRecipes] Getting recipes for author ${author}`);
 
   // Get count of recipes in DB
   console.log("[getRecipes] Querying DB for total number of recipes");
-  const countQuery = "SELECT COUNT(rec_id) FROM recipes";
-  let countResult = await doQuery(countQuery);
+  let countQuery = "SELECT COUNT(rec_id) FROM recipes";
+  let countQueryValues = [];
+  // Add author to query if provided
+  if(author != null) {
+    countQuery = countQuery + " WHERE author=$1";
+    countQueryValues.push(author);
+  }
+
+  let countResult = await doQuery(countQuery, countQueryValues);
 
   let numRecipes;
   if(countResult['status'] == "success") {
@@ -67,9 +88,18 @@ async function getRecipes(offset, limit) {
     return { status: "failure" };
   }
 
-  console.log(`[getRecipes] Querying DB for ${limit} recipes`)
-  const recipeQuery = "SELECT * FROM recipes ORDER BY recipe_name ASC LIMIT $1 OFFSET $2";
-  const recipeValues = [limit, offset];
+  // Get recipes from DB
+  console.log(`[getRecipes] Querying DB for ${limit} recipes`);
+  // Query with author is too different to just append to the end
+  let recipeQuery, recipeValues;
+  if(author != null) {
+    recipeQuery = "SELECT * FROM recipes WHERE author=$1 ORDER BY recipe_name ASC LIMIT $2 OFFSET $3";
+    recipeValues = [author, limit, offset];
+  } else {
+    recipeQuery = "SELECT * FROM recipes ORDER BY recipe_name ASC LIMIT $1 OFFSET $2";
+    recipeValues = [limit, offset];
+  }
+
   let recipeResults = await doQuery(recipeQuery, recipeValues);
 
   if(recipeResults['status'] == "success") {

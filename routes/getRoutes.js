@@ -33,6 +33,7 @@ module.exports = (app) => {
         // Collect parameters
         let page = parseInt(req.query.page, 10);
         let limit = parseInt(req.query.limit, 10);
+        let author = req.query.author;
 
         console.log(`[/api/get/recipes] Received request for ${limit} recipes`);
 
@@ -47,7 +48,12 @@ module.exports = (app) => {
         let offset = (page-1) * limit;
 
         // Perform query
-        let results = await get.getRecipes(offset, limit);
+        let results;
+        if(author != undefined) {
+            results = await get.getRecipes(offset, limit, author);
+        } else {
+            results = await get.getRecipes(offset, limit);
+        }
 
         if(results['status'] == "success") {
             console.log("[/api/get/recipes] Sending recipes to client");

@@ -16,6 +16,18 @@ async function confirmAuth(pool, email) {
 }
 
 module.exports = (app, pool) => {
+    app.post('/api/post/create', async (req, res) => {
+        console.log("[/api/post/create] Received request");
+
+        // Confirm user is authorized
+        if(!req.session.authenticated) {
+            res.send( { status: "failure", code: 401 });
+        }
+
+        // Confirm all data is received
+        
+    });
+
     app.post('/api/post/createRecipe', async (req, res) => {
         console.log(`Received CREATE request`);
 
