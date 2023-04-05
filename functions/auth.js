@@ -80,4 +80,13 @@ function decodeJWT(jwt) {
     return payload;
 }
 
-module.exports = { generateTokens, sendTokenRequest, decodeJWT };
+function userAuthenticated(session) {
+    if(session.user_id == undefined || session.user_id == null) {
+        console.log("No user data");
+        return false;
+    } else {
+        return true;
+    }
+}
+
+module.exports = {  userAuthenticated, generateTokens, sendTokenRequest, decodeJWT };

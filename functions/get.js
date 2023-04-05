@@ -1,9 +1,9 @@
-const db = require('./getConnection');
+const { getPool } = require('./getConnection');
 
 // Make this a helper function since we do the same process for each query
 async function doQuery(query, queryValues=[]) {
   // Get pool
-  const pool = db.getPool();
+  const pool = getPool();
   // Connect to DB
   const client = await pool.connect();
 
@@ -140,6 +140,11 @@ async function searchDB(search) {
   }
 }
 
+async function checkRecipeExists(name) {
+   let results = await doQuery("SELECT recipe_name FROM recipes WHERE recipe_name=$1", [name]);
+   return (results['data']['rowCount'] > 0);
+}
+
 async function getRecipeInfo(recipeId) {
   const query = "SELECT recipe_name,details,category,author_fname,author_lname FROM recipes WHERE rec_id=$1";
   const queryValues = [recipeId];
@@ -255,4 +260,4 @@ async function getRecipeDirections(recipeId) {
   return (result['status'] == "success" ? { status: "success", directions: result['data']['rows'] } : { status: "failure" });
 }
 
-module.exports = { getCategories, getFavorites, getRecipes, getRandomRecipe, searchDB, getRecipeInfo, getRecipeIngredients, getRecipeDirections };
+module.exports = { checkRecipeExists, getCategories, getFavorites, getRecipes, getRandomRecipe, searchDB, getRecipeInfo, getRecipeIngredients, getRecipeDirections };

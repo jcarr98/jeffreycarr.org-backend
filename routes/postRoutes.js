@@ -1,5 +1,7 @@
 const transactions = require("../functions/transactions");
 const post = require('../functions/post');
+const { userAuthenticated } = require('../functions/auth');
+const { checkRecipeExists } = require('../functions/get');
 
 async function confirmAuth(pool, email) {
     // Get all authed users for method
@@ -19,13 +21,57 @@ module.exports = (app, pool) => {
     app.post('/api/post/create', async (req, res) => {
         console.log("[/api/post/create] Received request");
 
-        // Confirm user is authorized
-        if(!req.session.authenticated) {
-            res.send( { status: "failure", code: 401 });
+        // Check user is authenticated
+        // if(!req.session.authenticated) {
+        //     console.error("[/api/favorite_item] User not authenticated");
+        //     res.send({status: "failure", code: 401 });
+        //     return;
+        // }
+        // // Confirm we have user info saved
+        // if(req.session.user['user_id'] == undefined || req.session.user['user_id'] == null) {
+        //     console.error("[/api/favorite_item] No user data");
+        //     res.send({ status: "failure", code: 401 });
+        //     return;
+        // }
+
+        let recipe = req.body.recipe;
+
+        if(recipe == undefined) {
+            console.error("No recipe provided");
+            res.send({ status: "failure", code: 400 });
+            return;
+        }
+        else if(recipe.title == undefined) {
+            console.error("Recipe must have title");
+            res.send({ status: "failure", code: 400 });
+            return;
+        }
+        else if(recipe.ingredients == undefined || recipe.ingredients.length == 0) {
+            console.error("Recipe must have at least one ingredient");
+            res.send({ status: "failure", code: 400 });
+            return;
+        }
+        else if(recipe.directions == undefined || recipe.directions.length == 0) {
+            console.error("Recipe must have at least one step");
+            res.send({ status: "failure", code: 400 });
+            return;
+        }
+        else if(await checkRecipeExists(recipe.title)) {
+            console.error(`A recipe with the title ${req.body.title} already exists!`);
+            res.send({ status: "failure", code: 400 });
+            return;
+        } else {
+            if(recipe.description == undefined) recipe.description = "";
+            
         }
 
-        // Confirm all data is received
-        
+        // Confirm we have all required fields
+        console.log(req.body.title);
+        console.log(req.body.description);
+        console.log(req.body.ingredients);
+        console.log(req.body.directions);
+
+        res.send({ status: "testing" });
     });
 
     app.post('/api/post/createRecipe', async (req, res) => {

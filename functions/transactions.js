@@ -1,4 +1,8 @@
-async function createRecipe(pool, recipe, category, author) {
+const { getPool } = require('./getConnection');
+
+async function createRecipe(recipe, category, author) {
+    // Get pool
+    const pool = getPool();
     // Get connection from pool
     // Don't need to try/catch because client will just be undefined on failure
     const client = await pool.connect();
@@ -33,7 +37,7 @@ async function createRecipe(pool, recipe, category, author) {
                 ingredientId = ingredientResult.rows[0].id;
             }
             // Insert into rIngredients table
-            await client.query("INSERT INTO rIngredients (recipe, ingredient, style, amount, optional) VALUES ($1, $2, $3, $4, $5)", [recipeId, ingredientId, ingredient.style, ingredient.amount, ingredient.optional]);
+            await client.query("INSERT INTO rIngredients (recipe, ingredient, prep, amount, optional) VALUES ($1, $2, $3, $4, $5)", [recipeId, ingredientId, ingredient.prep, ingredient.amount, ingredient.optional]);
         }
 
         for(let i = 0; i < recipe.directions.length; i++) {
