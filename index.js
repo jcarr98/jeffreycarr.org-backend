@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const { Pool } = require('pg');
 
-console.log(`Attempting to create server on port ${process.env.PORT}`);
+console.log(`Attempting to create server for app hosted at ${process.env.BASE_URL}`);
 
 // Load local environment variables
 if(process.env.NODE_ENV !== 'production') {
