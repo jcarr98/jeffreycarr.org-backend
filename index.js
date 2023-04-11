@@ -63,7 +63,16 @@ if(process.env.NODE_ENV !== 'production') {
     };
 
     https.createServer(httpsOptions, app).listen(PORT, console.log(`Secure server running on port ${PORT}`));
-} else {
+} 
+else if(process.env.NODE_ENV == 'production') {
+    const httpsOptions = {
+        key: process.env.SSL_KEY,
+        cert: process.env.SSL_CERT
+    };
+
+    https.createServer(httpsOptions, app).listen(PORT, console.log(`Secure server running on port ${PORT}`));
+}
+else {
     app.listen(PORT, () => {
         console.log("Listening on port: ", PORT);
     });
