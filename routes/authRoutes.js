@@ -47,6 +47,7 @@ module.exports = (app) => {
         // Confirm CSRF token
         if(req.query.csrf != req.session.csrf) {
             console.error("[/auth/google/verify_login] Incorrect CSRF Token!");
+            console.error(req.session);
             res.send({ status: "failure", message: `Incorrect CSRF token! ${req.query.csrf} != ${req.session.csrf}` });
             return;
         }
