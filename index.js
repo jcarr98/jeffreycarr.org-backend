@@ -65,6 +65,7 @@ if(process.env.NODE_ENV !== 'production') {
     https.createServer(httpsOptions, app).listen(PORT, console.log(`Secure server running on port ${PORT}`));
 } 
 else if(process.env.NODE_ENV == 'production') {
+    console.log(`Starting server with cert ${process.env.SSL_CERT}`);
     const httpsOptions = {
         key: process.env.SSL_KEY,
         cert: process.env.SSL_CERT
