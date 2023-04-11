@@ -12,6 +12,34 @@ if(process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
 }
 
+// The online tutorial didn't teach me how to use a connection string to connect to db, so we can just parse it
+let fullConnectionString = process.env.DB_URL
+
+// remove mysql://
+let connectionString = fullConnectionString.substring(13, connectionString.length)
+
+// Get user and password
+let userAndPassw = connectionString.split('@')[0];
+let user = userAndPassw.split(':')[0];
+let password = userAndPassw.split(':')[1];
+
+// Host
+let afterAt = connectionString.split('@')[1];
+host = afterAt.split(':')[0];
+let port = afterAt.split(':')[1].split('/')[0];
+
+// Set up session store
+const mySqlStore = require('express-mysql-session')(session);
+const sessionStore = new mySqlStore({
+    connectionLimit: 10,
+    password: password,
+    user: user,
+    database: 'recipe-book',
+    host: host,
+    port: port,
+    createDatabaseTable: true
+});
+
 // Set up app
 const app = express();
 app.use(express.json());
@@ -27,6 +55,7 @@ app.use(session({
         sameSite: 'none'
     },
     saveUninitialized: false,
+    store: sessionStore,
     resave: false
 }));
 
@@ -38,8 +67,7 @@ let corsOptions = {
 app.use(cors(corsOptions));
 
 // Connect to DB
-const connectionString = process.env.DB_URL;
-const pool = new Pool({connectionString});
+const pool = new Pool({fullConnectionString});
 
 // Import routes
 require('./routes/getRoutes')(app);
