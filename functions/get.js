@@ -2,15 +2,21 @@ const { getPool } = require('./getConnection');
 
 // Make this a helper function since we do the same process for each query
 async function doQuery(query, queryValues=[]) {
-  // Get pool
-  const pool = getPool();
-  // Connect to DB
-  const client = await pool.connect();
+  let pool, client;
+  try {
+    // Get pool
+    pool = getPool();
+    // Connect to DB
+    client = await pool.connect();
+  } catch (e) {
+    console.error("Error connecting to DB");
+    return { status: "failure", code: 500 };
+  }
 
   // Do query
   let finalResult;
   try {
-    const result = await client.query(query, queryValues);
+    let result = await client.query(query, queryValues);
     finalResult = { status: "success", data: result };
   } catch(e) {
     console.error("Error performing query");
@@ -27,13 +33,23 @@ async function getCategories() {
   console.log("[getCategories] Connecting to DB");
 
   // Perform query
-  const query = "SELECT * FROM categories";
-  let result = await doQuery(query);
+  let result = await doQuery("SELECT * FROM categories");
   
   if(result['status'] == "failure") {
     return { status: "failure" };
   } else {
     return { status: "success", data: result['data']['rows'] };
+  }
+}
+
+async function getIngredients() {
+  // Perform query
+  let result = await doQuery("SELECT * FROM ingredients");
+
+  if(result['status'] == "success") {
+    return { status: "success", data: result['data']['rows'] };
+  } else {
+    return { status: "failure" };
   }
 }
 
@@ -65,19 +81,60 @@ async function getFavorites(user_id) {
   return { status: "success", data: userFavorites };
 }
 
-async function getRecipes(offset, limit, author=null) {
+async function checkIfFavorited(recipeId, userId) {
+  console.log("[checkIfFavorited] Checking favorites...");
+  // Get user's favorites
+  let idRequest = await doQuery("SELECT rec_id FROM user_favorites WHERE user_id=$1", [userId]);
+  
+  if(idRequest['status'] == "success") {
+    // Check if any ids match our requested id
+    for(let i=0; i < idRequest['data']['rows'].length; i++) {
+      console.log(`Comparing ${idRequest['data']['rows'][i]['rec_id']} to ${recipeId}: ${idRequest['data']['rows'][i]['rec_id'] == recipeId}`)
+      if(idRequest['data']['rows'][i]['rec_id'] == recipeId) {
+        return { status: "success", favorited: true };
+      }
+    }
+
+    return { status: "success", favorited: false };
+  } else {
+    return { status: "failure", code: 500 };
+  }
+}
+
+async function getRecipes(offset, limit, authors, categories) {
   console.log("[getRecipes] Connecting to DB");
-  if(author != null) console.log(`[getRecipes] Getting recipes for author ${author}`);
 
   // Get count of recipes in DB
   console.log("[getRecipes] Querying DB for total number of recipes");
   let countQuery = "SELECT COUNT(rec_id) FROM recipes";
   let countQueryValues = [];
-  // Add author to query if provided
-  if(author != null) {
-    countQuery = countQuery + " WHERE author=$1";
-    countQueryValues.push(author);
+  // Add authors to query if provided
+  let variableCount = 1;
+  if(authors.length > 0) {
+    countQuery = countQuery + " WHERE (author=$1";
+    countQueryValues.push(authors[0]['user_id']);
+    variableCount += 1;
+    for(let i=1; i < authors.length; i++) {
+      countQuery += ` OR author=$${variableCount}`;
+      countQueryValues.push(authors[i]['user_id']);
+      variableCount += 1;
+    }
+    countQuery += ")";
   }
+  if(categories.length > 0) {
+    countQuery += `${authors.length > 0 ? " AND" : " WHERE"} (category=$${variableCount}`;
+    countQueryValues.push(categories[0]['cat_id']);
+    variableCount += 1;
+    for(let i=1; i < categories.length; i++) {
+      countQuery += ` OR category=$${variableCount}`;
+      countQueryValues.push(categories[i]['cat_id']);
+      variableCount += 1;
+    }
+    countQuery += ")";
+  }
+
+  console.log("[getRecipes] Count query: ", countQuery);
+  console.log("[getRecipes] Count query values: ", countQueryValues);
 
   let countResult = await doQuery(countQuery, countQueryValues);
 
@@ -91,14 +148,40 @@ async function getRecipes(offset, limit, author=null) {
   // Get recipes from DB
   console.log(`[getRecipes] Querying DB for ${limit} recipes`);
   // Query with author is too different to just append to the end
-  let recipeQuery, recipeValues;
-  if(author != null) {
-    recipeQuery = "SELECT * FROM recipes WHERE author=$1 ORDER BY recipe_name ASC LIMIT $2 OFFSET $3";
-    recipeValues = [author, limit, offset];
-  } else {
-    recipeQuery = "SELECT * FROM recipes ORDER BY recipe_name ASC LIMIT $1 OFFSET $2";
-    recipeValues = [limit, offset];
+  let recipeQuery = "SELECT * FROM recipes"; 
+  let recipeValues = [];
+  variableCount = 1;
+  if(authors.length > 0) {
+    recipeQuery += " WHERE (author=$1";
+    recipeValues.push(authors[0]['user_id']);
+    variableCount += 1;
+    for(let i=1; i < authors.length; i++) {
+      recipeQuery += ` OR author=$${variableCount}`;
+      recipeValues.push(authors[i]['user_id']);
+      variableCount += 1;
+    }
+    recipeQuery += ")";
   }
+  if(categories.length > 0) {
+    // Put AND if there are also authors being filtered, put WHERE if it's just categories
+    recipeQuery += `${authors.length > 0 ? " AND" : " WHERE"} (category=$${variableCount}`;
+    recipeValues.push(categories[0]['cat_id']);
+    variableCount += 1;
+    for(let i=1; i < categories.length; i++) {
+      recipeQuery += ` OR category=$${variableCount}`;
+      recipeValues.push(categories[i]['cat_id']);
+      variableCount += 1;
+    }
+    recipeQuery += ")";
+  }
+
+  // Add order, limit, and offset to query
+  recipeQuery += ` ORDER BY recipe_name ASC LIMIT $${variableCount} OFFSET $${variableCount+1}`;
+  recipeValues.push(limit);
+  recipeValues.push(offset);
+
+  console.log("[getRecipes] Query:", recipeQuery);
+  console.log("[getRecipes] Values:", recipeValues);
 
   let recipeResults = await doQuery(recipeQuery, recipeValues);
 
@@ -122,11 +205,42 @@ async function getRandomRecipe() {
   }
 }
 
+async function getAuthorNames(ids) {
+  // Make query for each author
+  let authors = [];
+  
+  try {
+    for(let i=0; i < ids.length; i++) {
+      let result = await doQuery("SELECT fname, lname FROM users WHERE user_id=$1", [ids[i]]);
+      if(result['status'] == "failure") {
+        console.error("[getAuthorNames] Error retrieving author from DB");
+        return { status: "failure", code: 500 };
+      } 
+      else if(result['data']['rowCount'] == 0) {
+        continue;
+      }
+      else {
+        authors.push({
+          user_id: ids[i],
+          fname: result['data']['rows'][0]['fname'],
+          lname: result['data']['rows'][0]['lname']
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Error getting authors");
+    return { status: "failure", code: 500 };
+  }
+
+  return { status: "success", data: authors };
+}
+
 async function searchDB(search) {
   // Add % to search query
   let broadSearch = "%" + search + "%";
 
   // Write query
+  // ILIKE isn't the most efficient search, but cockroachDB doesn't support faster search yet
   const query = "SELECT * FROM recipes WHERE recipe_name ILIKE $1";
   const queryValues = [broadSearch];
 
@@ -146,7 +260,7 @@ async function checkRecipeExists(name) {
 }
 
 async function getRecipeInfo(recipeId) {
-  const query = "SELECT recipe_name,details,category,author_fname,author_lname FROM recipes WHERE rec_id=$1";
+  const query = "SELECT recipe_name,details,category,author FROM recipes WHERE rec_id=$1";
   const queryValues = [recipeId];
   const queryResult = await doQuery(query, queryValues);
 
@@ -260,4 +374,4 @@ async function getRecipeDirections(recipeId) {
   return (result['status'] == "success" ? { status: "success", directions: result['data']['rows'] } : { status: "failure" });
 }
 
-module.exports = { checkRecipeExists, getCategories, getFavorites, getRecipes, getRandomRecipe, searchDB, getRecipeInfo, getRecipeIngredients, getRecipeDirections };
+module.exports = { checkIfFavorited, checkRecipeExists, getAuthorNames, getCategories, getFavorites, getIngredients, getRandomRecipe, getRecipeDirections, getRecipeInfo, getRecipeIngredients, getRecipes, searchDB };

@@ -81,10 +81,17 @@ function decodeJWT(jwt) {
 }
 
 function userAuthenticated(session) {
-    if(session.user_id == undefined || session.user_id == null) {
-        console.log("No user data");
+    console.log("[userAuthenticated] Checking user authentication...");
+    if(session.user == undefined || session.user.user_id == undefined || session.user.user_id == null) {
+        console.log("[userAuthenticated] No user data saved");
         return false;
-    } else {
+    } 
+    else if(!session.authenticated) {
+        console.log("[userAuthenticated] User not authenticated");
+        return false;
+    }
+    else {
+        console.log("[userAuthenticated] User successfully authenticated");
         return true;
     }
 }
