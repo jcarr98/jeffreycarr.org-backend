@@ -22,7 +22,7 @@ app.use(session({
     name: "recipebook-session",
     secret: process.env.SESSION_SECRET,
     cookie: {
-        maxAge: 86400000, // 1 day
+        maxAge: 2592000000, // 30 days
         secure: true,
         sameSite: 'none'
     },
@@ -42,17 +42,17 @@ const connectionString = process.env.DB_URL;
 const pool = new Pool({connectionString});
 
 // Import routes
-require('./routes/getRoutes')(app, pool);
+require('./routes/getRoutes')(app);
 require('./routes/postRoutes')(app, pool);
 require('./routes/authRoutes')(app, pool);
 
 // Set up server
 const PORT = process.env.PORT || 5001;
 if(process.env.NODE_ENV !== 'production') {
-    // DEV ONLY
+    // DEV ONLY - cookies require https connection
     const httpsOptions = {
-        key: fs.readFileSync('certs/localhost+1-key.pem'),
-        cert: fs.readFileSync('certs/localhost+1.pem')
+        key: fs.readFileSync(process.env.SSL_KEY),
+        cert: fs.readFileSync(process.env.SSL_CERT)
     };
 
     https.createServer(httpsOptions, app).listen(PORT, console.log(`Secure server running on port ${PORT}`));

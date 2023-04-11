@@ -3,21 +3,23 @@ const uuid = require('uuid');
 const https = require('https');
 
 function generateTokens() {
-    console.log("Generating tokens for client");
-    // Generate UUID (for csrf)
-    let csrf = uuid.v4();
+    console.log("[generateTokens] Generating tokens for client");
+    try {
+        // Generate UUID (for csrf)
+        let csrf = uuid.v4();
 
-    // Generate nonce
-    let nonceArray = new Uint16Array(1);
-    crypto.getRandomValues(nonceArray);
-    let nonce = nonceArray[0];
-
-    // Return values as object
-    return {"CSRF": csrf, "nonce": nonce};
+        // Generate nonce
+        let nonceArray = new Uint16Array(1);
+        crypto.getRandomValues(nonceArray);
+        let nonce = nonceArray[0];
+        return { status: "success", CSRF: csrf, nonce: nonce };
+    } catch(e) {
+        return { status: "failure", e: e };
+    }
 }
 
 async function sendTokenRequest(code) {
-    console.log("Sending token request to Google");
+    console.log("[sendTokenRequest] Sending token request to Google");
     // Build token request
     let requestData = `code=${code}&client_id=${process.env.GOOGLE_CLIENT_ID}&client_secret=${process.env.GOOGLE_CLIENT_SECRET}&redirect_uri=${process.env.BASE_URL}/login&grant_type=authorization_code`;
     
@@ -78,4 +80,20 @@ function decodeJWT(jwt) {
     return payload;
 }
 
-module.exports = { generateTokens, sendTokenRequest, decodeJWT };
+function userAuthenticated(session) {
+    console.log("[userAuthenticated] Checking user authentication...");
+    if(session.user == undefined || session.user.user_id == undefined || session.user.user_id == null) {
+        console.log("[userAuthenticated] No user data saved");
+        return false;
+    } 
+    else if(!session.authenticated) {
+        console.log("[userAuthenticated] User not authenticated");
+        return false;
+    }
+    else {
+        console.log("[userAuthenticated] User successfully authenticated");
+        return true;
+    }
+}
+
+module.exports = {  userAuthenticated, generateTokens, sendTokenRequest, decodeJWT };
