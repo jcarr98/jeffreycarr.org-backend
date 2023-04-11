@@ -52,10 +52,15 @@ async function cleanIngredients(ingredients) {
 }
 
 async function createRecipe(recipe) {
-    // Get pool
-    const pool = getPool();
     // Connect to DB
-    const client = await pool.connect();
+    let client;
+    try {
+        const pool = getPool();
+        client = await pool.connect();
+    } catch (e) {
+        console.error(`[createRecipe] Error creating recipe: could not connect to DB`);
+        return;
+    }
 
     // Start transaction
     let result;
@@ -127,10 +132,15 @@ async function createRecipe(recipe) {
     Do NOT delete ingredients as they could be used in other recipes
 */
 async function deleteRecipe(id) {
-    // Get pool
-    const pool = getPool();
     // Connect to DB
-    const client = await pool.connect();
+    let client;
+    try {
+        const pool = getPool();
+        client = await pool.connect();
+    } catch (e) {
+        console.error(`[deleteRecipe] Error deleting recipe: could not connect to DB`);
+        return;
+    }
 
     let result;
     try {
@@ -280,9 +290,16 @@ async function updateRecipe(recipe) {
 /*
     Gets user by email address
 */
-async function getUser(pool, email) {
-    console.log("Getting user information");
-    const client = await pool.connect();
+async function getUser(email) {
+    // Connect to DB
+    let client;
+    try {
+        const pool = getPool();
+        client = await pool.connect();
+    } catch (e) {
+        console.error(`[getUser] Error getting user: could not connect to DB`);
+        return;
+    }
 
     let result;
     try {
@@ -299,9 +316,17 @@ async function getUser(pool, email) {
 }
 
 // Update user logged in time
-async function updateLogin(pool, uuid) {
+async function updateLogin(uuid) {
     console.log("Updating user login");
-    const client = await pool.connect();
+    // Connect to DB
+    let client;
+    try {
+        const pool = getPool();
+        client = await pool.connect();
+    } catch (e) {
+        console.error(`[updateLogin] Error updating login: could not connect to DB`);
+        return;
+    }
     const date = new Date();
 
     let result;
@@ -320,9 +345,17 @@ async function updateLogin(pool, uuid) {
 }
 
 // Create new user
-async function createUser(pool, fname=null, lname=null, email) {
+async function createUser(fname=null, lname=null, email) {
     console.log("Creating new user");
-    const client = await pool.connect();
+    // Connect to DB
+    let client;
+    try {
+        const pool = getPool();
+        client = await pool.connect();
+    } catch (e) {
+        console.error(`[createUser] Error creating user: could not connect to DB`);
+        return;
+    }
     
     let result;
     try {

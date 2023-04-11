@@ -2,8 +2,12 @@ const transactions = require("../functions/transactions");
 const post = require('../functions/post');
 const { userAuthenticated } = require('../functions/auth');
 const { checkRecipeExists } = require('../functions/get');
+const { getPool } = require('../functions/getConnection');
 
-async function confirmAuth(pool, email) {
+async function confirmAuth(email) {
+    // Get pool
+    const pool = getPool();
+
     // Get all authed users for method
     const authQ = await pool.query(`SELECT email FROM users WHERE admin='t'`);
     const authedUsers = authQ.rows;
@@ -17,7 +21,7 @@ async function confirmAuth(pool, email) {
     return false;
 }
 
-module.exports = (app, pool) => {
+module.exports = (app) => {
     app.post('/api/post/create', async (req, res) => {
         console.log("[/api/post/create] Received request");
 

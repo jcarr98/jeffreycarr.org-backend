@@ -12,39 +12,22 @@ if(process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
 }
 
-// The online tutorial didn't teach me how to use a connection string to connect to db, so we can just parse it
-let fullConnectionString = process.env.DB_URL
+const connectionString = process.env.DB_URL;
 
-// remove mysql://
-let connectionString = fullConnectionString.substring(13, connectionString.length)
+console.log("Connecting to DB...");
+// Connect to DB
+const pool = new Pool({ connectionString });
 
-// Get user and password
-let userAndPassw = connectionString.split('@')[0];
-let user = userAndPassw.split(':')[0];
-let password = userAndPassw.split(':')[1];
-
-// Host
-let afterAt = connectionString.split('@')[1];
-host = afterAt.split(':')[0];
-let port = afterAt.split(':')[1].split('/')[0];
-
-// Set up session store
-const mySqlStore = require('express-mysql-session')(session);
-const sessionStore = new mySqlStore({
-    connectionLimit: 10,
-    password: password,
-    user: user,
-    database: 'recipe-book',
-    host: host,
-    port: port,
-    createDatabaseTable: true
-});
+console.log("Creating store...");
+// Create store
+const store = new (require('connect-pg-simple')(session))({pool: pool});
 
 // Set up app
 const app = express();
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
+console.log("Setting up sessions...");
 // Set up sessions
 app.use(session({
     name: "recipebook-session",
@@ -55,7 +38,7 @@ app.use(session({
         sameSite: 'none'
     },
     saveUninitialized: false,
-    store: sessionStore,
+    store: store,
     resave: false
 }));
 
@@ -66,13 +49,10 @@ let corsOptions = {
 }
 app.use(cors(corsOptions));
 
-// Connect to DB
-const pool = new Pool({fullConnectionString});
-
 // Import routes
 require('./routes/getRoutes')(app);
-require('./routes/postRoutes')(app, pool);
-require('./routes/authRoutes')(app, pool);
+require('./routes/postRoutes')(app);
+require('./routes/authRoutes')(app);
 
 // Set up server
 const PORT = process.env.PORT || 5001;

@@ -1,7 +1,7 @@
 const auth = require('../functions/auth');
 const transactions = require('../functions/transactions');
 
-module.exports = (app, pool) => {
+module.exports = (app) => {
     // Check if user is authenticated
     app.get("/auth/check_authentication", (req, res) => {
         console.log('[/auth/check_authentication] Received authentication request');
@@ -70,7 +70,7 @@ module.exports = (app, pool) => {
         delete req.session.csrf;
 
         // Get user
-        let queryResult = await transactions.getUser(pool, tokenData['email']);
+        let queryResult = await transactions.getUser(tokenData['email']);
         
         // If user exists, save their email
         let user_id, is_admin;
@@ -81,10 +81,10 @@ module.exports = (app, pool) => {
             user_id = queryResult['data']['rows'][0]['user_id'];
             is_admin = queryResult['data']['rows'][0]['is_admin'];
             // Update login time
-            await transactions.updateLogin(pool, user['user_id']);
+            await transactions.updateLogin(user['user_id']);
         } else {
             // User does not exist in database, let's create one
-            let newUser = await transactions.createUser(pool, tokenData['given_name'], tokenData['family_name'], tokenData['email']);
+            let newUser = await transactions.createUser(tokenData['given_name'], tokenData['family_name'], tokenData['email']);
             // newUser returns status and (if successful) the new user's ID
             user_id = newUser['data'];
             // Because this is a new user, it is defaulted to false
