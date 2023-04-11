@@ -36,8 +36,7 @@ module.exports = (app) => {
         // Save CSRF to user session
         console.log(`Setting CSRF token: ${tokens['CSRF']}`);
         req.session.csrf = tokens['CSRF'];
-        console.log(req.session.id);
-        console.log(req.session.sid);
+        console.log("Setting on session", req.session.sid);
         console.log(req.session);
         console.log("[/auth/tokens] Saved auth tokens to session");
 
@@ -51,7 +50,7 @@ module.exports = (app) => {
         // Confirm CSRF token
         if(req.query.csrf != req.session.csrf) {
             console.error("[/auth/google/verify_login] Incorrect CSRF Token!");
-            console.error(req.session);
+            console.error("From session", req.session.sid);
             res.send({ status: "failure", message: `Incorrect CSRF token! ${req.query.csrf} != ${req.session.csrf}` });
             return;
         }
