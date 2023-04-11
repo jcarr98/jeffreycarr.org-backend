@@ -7,6 +7,8 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const { Pool } = require('pg');
 
+console.log(`Attempting to create server on port ${process.env.PORT}`);
+
 // Load local environment variables
 if(process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
@@ -14,11 +16,9 @@ if(process.env.NODE_ENV !== 'production') {
 
 const connectionString = process.env.DB_URL;
 
-console.log("Connecting to DB...");
 // Connect to DB
 const pool = new Pool({ connectionString });
 
-console.log("Creating store...");
 // Create store
 const store = new (require('connect-pg-simple')(session))({pool: pool});
 
@@ -27,7 +27,6 @@ const app = express();
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
-console.log("Setting up sessions...");
 // Set up sessions
 app.use(session({
     name: "recipebook-session",
