@@ -55,7 +55,7 @@ require('./routes/postRoutes')(app);
 require('./routes/authRoutes')(app);
 
 // Set up server
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 8080;
 if(process.env.NODE_ENV !== 'production') {
     // DEV ONLY - cookies require https connection
     const httpsOptions = {
