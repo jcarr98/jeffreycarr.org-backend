@@ -43,10 +43,11 @@ module.exports = (app, pool) => {
 
     app.get('/auth/google/verify_login', async (req, res) => {
         console.log("[/auth/google/verify_login] Verifying user's login tokens");
+        if(!req.session) res.send({ status: "failure", message: "No session!" });
         // Confirm CSRF token
         if(req.query.csrf != req.session.csrf) {
             console.error("[/auth/google/verify_login] Incorrect CSRF Token!");
-            res.send({ status: "failure" });
+            res.send({ status: "failure", message: "Incorrect CSRF Token" });
             return;
         }
 
@@ -55,7 +56,7 @@ module.exports = (app, pool) => {
         if(result['status'] == "failure") {
             console.error("[/auth/google/verify_login] Unsuccessful request to Google")
             console.error(result['data']);
-            res.send({ status: "failure" });
+            res.send({ status: "failure", message: "Unsuccessful request to Google" });
             return;
         }
 
