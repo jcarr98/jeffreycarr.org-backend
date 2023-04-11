@@ -34,7 +34,9 @@ module.exports = (app) => {
         }
 
         // Save CSRF to user session
+        console.log(`Setting CSRF token: ${tokens['CSRF']}`);
         req.session.csrf = tokens['CSRF'];
+        console.log(req.session);
         console.log("[/auth/tokens] Saved auth tokens to session");
 
         // Return tokens to webapp
