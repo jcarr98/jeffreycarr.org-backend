@@ -5,26 +5,17 @@ const https = require('https');
 function generateTokens() {
     console.log("[generateTokens] Generating tokens for client");
     let max = 1000000;
-    let csrf, csrfFailure = false;
     try {
         // Generate UUID (for csrf)
-        csrf = uuid.v4();
-    } catch(e) {
-        csrf = Math.random() * max;
-        csrfFailure = true;
-    }
-    let nonce, nonceFailure = false;
-    try {
+        let csrf = uuid.v4();
+        
         // Generate nonce
-        let nonceArray = new Uint16Array(1);
-        crypto.getRandomValues(nonceArray);
-        nonce = nonceArray[0];
-    } catch(e) {
         let nonce = Math.random() * max;
-        nonceFailure = true
+        
+        return { status: "success", CSRF: csrf, nonce: nonce };
+    } catch(e) {
+        return { status: "failure", code: 500 };
     }
-    
-    return { status: "success", CSRF: csrf, nonce: nonce, csrfFailure: csrfFailure, nonceFailure: nonceFailure };
 }
 
 async function sendTokenRequest(code) {
