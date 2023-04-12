@@ -87,6 +87,14 @@ module.exports = (app) => {
         }
     });
 
+    app.get("/api/get/authors", async (req, res) => {
+        console.log("[/api/get/authors] Received request for all authors");
+
+        let result = await get.getAllAuthors();
+
+        res.send(result);
+    });
+
     /** Provided a list of author ids, look up fname and lname */
     app.get("/api/get/author_names", async (req, res) => {
         console.log("[/api/get/author_names] Received request for author names");

@@ -205,6 +205,32 @@ async function getRandomRecipe() {
   }
 }
 
+async function getAllAuthors() {
+  let authors = [];
+
+  try {
+    // Get all users
+    let result = await doQuery("SELECT user_id, fname, lname FROM users", []);
+    if(result['status'] == "failure") {
+      return { status: "failure", code: 500 };
+    }
+
+    let allUsers = result['data']['rows'];
+
+    // Find which users have written recipes
+    for(let i=0; i < allUsers.length; i++) {
+      let authorRecipes = await doQuery("SELECT recipe_name FROM recipes WHERE author=$1", [allUsers[i]['user_id']]);
+      if(authorRecipes['status'] == "failure") return { status: "failure", code: 500 };
+      else if(authorRecipes['data']['rowCount'] > 0)  authors.push(allUsers[i]);
+    }
+
+    return { status: "success", data: authors };
+  } catch (e) {
+    console.error(e);
+    return { status: "failure", code: 500 };
+  }
+}
+
 async function getAuthorNames(ids) {
   // Make query for each author
   let authors = [];
@@ -374,4 +400,4 @@ async function getRecipeDirections(recipeId) {
   return (result['status'] == "success" ? { status: "success", directions: result['data']['rows'] } : { status: "failure" });
 }
 
-module.exports = { checkIfFavorited, checkRecipeExists, getAuthorNames, getCategories, getFavorites, getIngredients, getRandomRecipe, getRecipeDirections, getRecipeInfo, getRecipeIngredients, getRecipes, searchDB };
+module.exports = { checkIfFavorited, checkRecipeExists, getAllAuthors, getAuthorNames, getCategories, getFavorites, getIngredients, getRandomRecipe, getRecipeDirections, getRecipeInfo, getRecipeIngredients, getRecipes, searchDB };
