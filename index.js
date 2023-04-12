@@ -7,12 +7,10 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const { Pool } = require('pg');
 
-console.log(`Attempting to create server for app hosted at ${process.env.BASE_URL}`);
+// Load environment variables
+require('dotenv').config();
 
-// Load local environment variables
-if(process.env.NODE_ENV !== 'production') {
-    require('dotenv').config();
-}
+console.log(process.env.NODE_ENV);
 
 const connectionString = process.env.DB_URL;
 
@@ -26,12 +24,14 @@ const store = new (require('connect-pg-simple')(session))({pool: pool});
 const app = express();
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
+app.enable('trust proxy');
 
 // Set up sessions
 app.use(session({
     name: "recipebook-session",
     secret: process.env.SESSION_SECRET,
     cookie: {
+        domain: `.jeffreycarr.dev`,
         maxAge: 2592000000, // 30 days
         secure: true,
         sameSite: 'none'
@@ -44,6 +44,7 @@ app.use(session({
 // Set up CORS
 let corsOptions = {
     origin: process.env.BASE_URL,
+    methods: ['POST', 'GET', 'PATCH', 'DELETE'],
     credentials: true
 }
 app.use(cors(corsOptions));

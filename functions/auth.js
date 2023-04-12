@@ -21,7 +21,7 @@ function generateTokens() {
 async function sendTokenRequest(code) {
     console.log("[sendTokenRequest] Sending token request to Google");
     // Build token request
-    let requestData = `code=${code}&client_id=${process.env.GOOGLE_CLIENT_ID}&client_secret=${process.env.GOOGLE_CLIENT_SECRET}&redirect_uri=${process.env.BASE_URL}/login.html&grant_type=authorization_code`;
+    let requestData = `code=${code}&client_id=${process.env.GOOGLE_CLIENT_ID}&client_secret=${process.env.GOOGLE_CLIENT_SECRET}&redirect_uri=${process.env.BASE_URL}/login&grant_type=authorization_code`;
     
     // Create HTTPS options
     let options = {
@@ -35,7 +35,13 @@ async function sendTokenRequest(code) {
 
     // Send HTTP request
     console.log("Sending request...");
-    let answer = await doRequest(options, requestData);
+    let answer;
+    try {
+        answer = await doRequest(options, requestData);
+    } catch (e) {
+        let code = e['code'];
+        answer = { status: "failure", data: "Failure on request to Google", code: code };
+    }
 
     return answer;
 }
@@ -45,7 +51,7 @@ function doRequest(options, data) {
         const req = https.request(options, (res) => {
 
             if(res.statusCode != 200) {
-                reject({status: 'failure', data: 'Bad status code'});
+                reject({status: 'failure', data: 'Bad status code', code: res.statusCode });
             }
 
             let responseData = [];

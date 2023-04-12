@@ -20,9 +20,10 @@ module.exports = (app) => {
         res.send( {status: "success"} );
     })
 
-    // Route to get all recipes
+    // Route to get auth tokens
     app.get("/auth/tokens", (req,res) => {
         console.log("[/auth/tokens] Generating new tokens...");
+        
         // Generate tokens
         let tokens = auth.generateTokens();
 
@@ -34,10 +35,7 @@ module.exports = (app) => {
         }
 
         // Save CSRF to user session
-        console.log(`Setting CSRF token: ${tokens['CSRF']}`);
         req.session.csrf = tokens['CSRF'];
-        console.log("Setting on session", req.session.sid);
-        console.log(req.session);
         console.log("[/auth/tokens] Saved auth tokens to session");
 
         // Return tokens to webapp
