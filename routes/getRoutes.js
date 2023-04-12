@@ -42,20 +42,23 @@ module.exports = (app) => {
         let limit = parseInt(req.query.limit, 10);
         
         // These should be arrays
+        let searchQuery = req.query.search;
         let authorsQuery = req.query.authors;
         let categoriesQuery = req.query.categories;
 
-
-        let authors, categories;
+        let authors, categories, search;
         try {
+            if(searchQuery != undefined) {
+                search = `%${JSON.parse(searchQuery)}%`;
+            } else {
+                search = "%%";
+            }
             if(authorsQuery != undefined) {
-                console.log(JSON.parse(authorsQuery));
                 authors = JSON.parse(authorsQuery);
             } else {
                 authors = [];
             }
             if(categoriesQuery != undefined) {
-                console.log(JSON.parse(categoriesQuery));
                 categories = JSON.parse(categoriesQuery);
             } else {
                 categories = [];
@@ -68,7 +71,7 @@ module.exports = (app) => {
         // Confirm valid parameters
         if(isNaN(page) || isNaN(limit)) {
             console.error("Invalid parameters provided to get/recipes");
-            res.send({status: "failure"});
+            res.send( {status: "failure" });
             return;
         }
 
@@ -76,7 +79,7 @@ module.exports = (app) => {
         let offset = (page-1) * limit;
 
         // Perform query
-        let results = await get.getRecipes(offset, limit, authors, categories);
+        let results = await get.getRecipes(offset, limit, authors, categories, search);
 
         if(results['status'] == "success") {
             console.log("[/api/get/recipes] Sending recipes to client");
@@ -129,24 +132,6 @@ module.exports = (app) => {
         }
 
         res.send(randomRecipe);
-    });
-
-    app.get("/api/get/search", async (req, res) => {
-        // Confirm search
-        if(req.query.search == undefined) {
-            console.error("[/api/get/search] Received malformed search request. Reporting failure");
-            res.send({ status: "failure" });
-            return;
-        }
-
-        console.log(`Received search request for ${req.query.search}`);
-
-        // Search DB
-        let results = await get.searchDB(req.query.search);
-
-        results['status'] == "success" ? console.log("Retrieved search results from database") : console.error("Failed to retrieve search results from server.");
-
-        res.send(results);
     });
 
     app.get("/api/get/recipe_info", async (req, res) => {

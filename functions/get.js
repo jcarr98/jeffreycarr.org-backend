@@ -101,17 +101,18 @@ async function checkIfFavorited(recipeId, userId) {
   }
 }
 
-async function getRecipes(offset, limit, authors, categories) {
+async function getRecipes(offset, limit, authors, categories, search) {
   console.log("[getRecipes] Connecting to DB");
 
   // Get count of recipes in DB
   console.log("[getRecipes] Querying DB for total number of recipes");
-  let countQuery = "SELECT COUNT(rec_id) FROM recipes";
+  let countQuery = `SELECT COUNT(rec_id) FROM recipes WHERE recipe_name ILIKE $1`;
   let countQueryValues = [];
+  countQueryValues.push(search);
   // Add authors to query if provided
-  let variableCount = 1;
+  let variableCount = 2;
   if(authors.length > 0) {
-    countQuery = countQuery + " WHERE (author=$1";
+    countQuery = countQuery + " AND (author=$2";
     countQueryValues.push(authors[0]);
     variableCount += 1;
     for(let i=1; i < authors.length; i++) {
@@ -122,7 +123,7 @@ async function getRecipes(offset, limit, authors, categories) {
     countQuery += ")";
   }
   if(categories.length > 0) {
-    countQuery += `${authors.length > 0 ? " AND" : " WHERE"} (category=$${variableCount}`;
+    countQuery += ` AND (category=$${variableCount}`;
     countQueryValues.push(categories[0]['cat_id']);
     variableCount += 1;
     for(let i=1; i < categories.length; i++) {
@@ -132,9 +133,6 @@ async function getRecipes(offset, limit, authors, categories) {
     }
     countQuery += ")";
   }
-
-  console.log("[getRecipes] Count query: ", countQuery);
-  console.log("[getRecipes] Count query values: ", countQueryValues);
 
   let countResult = await doQuery(countQuery, countQueryValues);
 
@@ -148,11 +146,12 @@ async function getRecipes(offset, limit, authors, categories) {
   // Get recipes from DB
   console.log(`[getRecipes] Querying DB for ${limit} recipes`);
   // Query with author is too different to just append to the end
-  let recipeQuery = "SELECT * FROM recipes"; 
+  let recipeQuery = `SELECT * FROM recipes WHERE recipe_name ILIKE $1`; 
   let recipeValues = [];
-  variableCount = 1;
+  recipeValues.push(search);
+  variableCount = 2;
   if(authors.length > 0) {
-    recipeQuery += " WHERE (author=$1";
+    recipeQuery += " AND (author=$2";
     recipeValues.push(authors[0]);
     variableCount += 1;
     for(let i=1; i < authors.length; i++) {
@@ -164,7 +163,7 @@ async function getRecipes(offset, limit, authors, categories) {
   }
   if(categories.length > 0) {
     // Put AND if there are also authors being filtered, put WHERE if it's just categories
-    recipeQuery += `${authors.length > 0 ? " AND" : " WHERE"} (category=$${variableCount}`;
+    recipeQuery += ` AND (category=$${variableCount}`;
     recipeValues.push(categories[0]['cat_id']);
     variableCount += 1;
     for(let i=1; i < categories.length; i++) {
@@ -179,9 +178,6 @@ async function getRecipes(offset, limit, authors, categories) {
   recipeQuery += ` ORDER BY recipe_name ASC LIMIT $${variableCount} OFFSET $${variableCount+1}`;
   recipeValues.push(limit);
   recipeValues.push(offset);
-
-  console.log("[getRecipes] Query:", recipeQuery);
-  console.log("[getRecipes] Values:", recipeValues);
 
   let recipeResults = await doQuery(recipeQuery, recipeValues);
 
@@ -259,25 +255,6 @@ async function getAuthorNames(ids) {
   }
 
   return { status: "success", data: authors };
-}
-
-async function searchDB(search) {
-  // Add % to search query
-  let broadSearch = "%" + search + "%";
-
-  // Write query
-  // ILIKE isn't the most efficient search, but cockroachDB doesn't support faster search yet
-  const query = "SELECT * FROM recipes WHERE recipe_name ILIKE $1";
-  const queryValues = [broadSearch];
-
-  // Search for results
-  let results = await doQuery(query, queryValues);
-
-  if(results['status'] == "success") {
-    return { status: "success", data: results['data']['rows'] };
-  } else {
-    return { status: "failure" };
-  }
 }
 
 async function checkRecipeExists(name) {
@@ -400,4 +377,4 @@ async function getRecipeDirections(recipeId) {
   return (result['status'] == "success" ? { status: "success", directions: result['data']['rows'] } : { status: "failure" });
 }
 
-module.exports = { checkIfFavorited, checkRecipeExists, getAllAuthors, getAuthorNames, getCategories, getFavorites, getIngredients, getRandomRecipe, getRecipeDirections, getRecipeInfo, getRecipeIngredients, getRecipes, searchDB };
+module.exports = { checkIfFavorited, checkRecipeExists, getAllAuthors, getAuthorNames, getCategories, getFavorites, getIngredients, getRandomRecipe, getRecipeDirections, getRecipeInfo, getRecipeIngredients, getRecipes };
