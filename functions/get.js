@@ -112,11 +112,11 @@ async function getRecipes(offset, limit, authors, categories) {
   let variableCount = 1;
   if(authors.length > 0) {
     countQuery = countQuery + " WHERE (author=$1";
-    countQueryValues.push(authors[0]['user_id']);
+    countQueryValues.push(authors[0]);
     variableCount += 1;
     for(let i=1; i < authors.length; i++) {
       countQuery += ` OR author=$${variableCount}`;
-      countQueryValues.push(authors[i]['user_id']);
+      countQueryValues.push(authors[i]);
       variableCount += 1;
     }
     countQuery += ")";
@@ -153,11 +153,11 @@ async function getRecipes(offset, limit, authors, categories) {
   variableCount = 1;
   if(authors.length > 0) {
     recipeQuery += " WHERE (author=$1";
-    recipeValues.push(authors[0]['user_id']);
+    recipeValues.push(authors[0]);
     variableCount += 1;
     for(let i=1; i < authors.length; i++) {
       recipeQuery += ` OR author=$${variableCount}`;
-      recipeValues.push(authors[i]['user_id']);
+      recipeValues.push(authors[i]);
       variableCount += 1;
     }
     recipeQuery += ")";
