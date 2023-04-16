@@ -59,7 +59,8 @@ async function deleteRecipe(id, user_id) {
   }
 
   // Confirm user owns this recipe
-  if(recipe['author'] != user_id) {
+  let userIsOwner = await userOwnsRecipe(recipe['rec_id'], user_id);
+  if(!userIsOwner) {
     console.error("[deleteRecipe] User is not authorized to delete this recipe");
     return { status: "failure", code: 401 };
   }
@@ -79,7 +80,8 @@ async function updateRecipe(recipe, user_id) {
 
   // Validate user can update this recipe
   console.log("[post/updateRecipe] Verifying user ownership...");
-  if(!userOwnsRecipe(recipe['rec_id'], user_id)) {
+  let userIsOwner = await userOwnsRecipe(recipe['rec_id'], user_id);
+  if(!userIsOwner) {
     console.error("[updateRecipe] User not authorized to update this recipe");
     return { status: "failure", code: 401 };
   } else {

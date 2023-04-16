@@ -204,7 +204,6 @@ async function updateRecipe(recipe) {
         console.error("[updateRecipe] Error connecting to database");
         return { status: "failure", code: 500 };
     }
-
     console.log("[transactions/updateRecipe] Connected to database!");
 
     let result;
@@ -301,17 +300,41 @@ async function getUser(email) {
         return;
     }
 
-    let result;
+    let result, userQuery;
     try {
-        let user = await client.query("SELECT * FROM users WHERE email=$1", [email]);
-        result = {status: "success", data: user};
+        userQuery = await client.query("SELECT user_id FROM users WHERE email=$1", [email]);
+        console.log(userQuery);
     } catch(e) {
         console.error("Error with retrieving user");
         console.error(e);
-        result = {status: "failure"};
-    } finally {
         client.release();
-        return result;
+        return { status: "failure" };
+    }
+
+    // Check if user exists
+    if(userQuery['rowCount'] > 0) {
+        console.log("User exists. Checking admin status");
+        let user = userQuery['rows'][0];
+        // Check if user is an admin
+        try {
+            admin = await client.query("SELECT admin_id FROM admins WHERE user_id=$1", [user['user_id']]);
+        } catch (e) {
+            console.error("Error checking if user is admin");
+            console.error(e);
+            user['is_admin'] = false;
+            client.release();
+            return { status: "success", exists: true, user: user };
+        }
+
+        if(admin['rowCount'] > 0) {
+            user['is_admin'] = true;
+        } else {
+            user['is_admin'] = false;
+        }
+
+        return { status: "success", exists: true, user: user };
+    } else {
+        return { status: "success", exists: false };
     }
 }
 

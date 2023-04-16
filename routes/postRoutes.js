@@ -94,7 +94,9 @@ module.exports = (app) => {
         }
 
         // Perform update to database
-        let result = await post.updateRecipe(req.body.recipe, req.session.user.user_id);
+        let user_id = req.session.user.user_id;
+        console.log(user_id);
+        let result = await post.updateRecipe(req.body.recipe, user_id);
 
         res.send(result);
     })

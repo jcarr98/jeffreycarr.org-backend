@@ -18,7 +18,7 @@ module.exports = (app) => {
     app.get("/auth/logout", (req, res) => {
         req.session.destroy();
         res.send( {status: "success"} );
-    })
+    });
 
     // Route to get auth tokens
     app.get("/auth/tokens", (req,res) => {
@@ -73,24 +73,25 @@ module.exports = (app) => {
 
         // Get user
         let queryResult = await transactions.getUser(tokenData['email']);
-        
-        // If user exists, save their email
+
         let user_id, is_admin;
-        if(queryResult['data']['rowCount'] > 0) {
-            let user = queryResult['data']['rows'][0];
-            console.log("User already exists. Updating last logged in.");
-            // Note relevant info
-            user_id = queryResult['data']['rows'][0]['user_id'];
-            is_admin = queryResult['data']['rows'][0]['is_admin'];
-            // Update login time
-            await transactions.updateLogin(user['user_id']);
-        } else {
+        if(queryResult['status'] == "success" && queryResult['exists']) {
+            let user = queryResult['user'];
+            user_id = user['user_id'];
+            is_admin = user['is_admin'];
+            console.log("User already exists. Updating last logged in");
+            await transactions.updateLogin(user_id);
+        }
+        else if(queryResult['status'] == "success") {
             // User does not exist in database, let's create one
             let newUser = await transactions.createUser(tokenData['given_name'], tokenData['family_name'], tokenData['email']);
             // newUser returns status and (if successful) the new user's ID
             user_id = newUser['data'];
             // Because this is a new user, it is defaulted to false
             is_admin = false;
+        } else {
+            console.error("[/auth/google/verify_login] Error verifying user login");
+            return { status: "failure", code: 500 };
         }
 
         // Create user object to save all relevant info
