@@ -6,20 +6,32 @@ async function userOwnsRecipe(rec_id, user_id) {
   const pool = getPool();
   const client = await pool.connect();
 
-  // Get recipe author
+  // Get recipe author and all admins
+  let result;
   try {
-    let recipeResult = await client.query("SELECT author FROM recipes WHERE rec_id=$1", [rec_id]);
+    let authorResult = await client.query("SELECT author FROM recipes WHERE rec_id=$1", [rec_id]);
+    let adminsResult = await client.query("SELECT user_id FROM admins", []);
 
-    if(recipeResult['rowCount'] == 0) {
+    // No recipe? Failure
+    if(authorResult['rowCount'] == 0) {
+      client.release();
       return false;
     }
 
-    let recipeAuthor = recipeResult['rows'][0]['author'];
+    let admins = [];
+    for(let i=0; i < adminsResult['rows'].length; i++) {
+      admins.push(adminsResult['rows'][0]['user_id']);
+    }
 
-    return user_id == recipeAuthor;
+    let recipeAuthor = authorResult['rows'][0]['author'];
+
+    result = ((user_id == recipeAuthor) || admins.includes(user_id));
   } catch (e) {
     console.error("[userOwnsRecipe] Error validating author");
-    return false;
+    result = false;
+  } finally {
+    client.release();
+    return result;
   }
 }
 
