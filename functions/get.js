@@ -186,23 +186,50 @@ async function getRecipes(offset, limit, authors, categories) {
   let recipeResults = await doQuery(recipeQuery, recipeValues);
 
   if(recipeResults['status'] == "success") {
-    return { status: "success", numRecipes: numRecipes, data: recipeResults['data']['rows'] };
+    // Convert author ids to author names and category ids to category names
+    const recipePromises = recipeResults.data.rows.map(async (recipe) => {
+      const newRecipe = {...recipe};
+      const promises = [];
+      promises.push(getAuthorName(newRecipe.author));
+      promises.push(getCategoryName(newRecipe.category));
+
+      const results = await Promise.all(promises);
+      if(results[0].status !== "success") {
+        newRecipe.authorFname = "Unknown";
+      } else {
+        newRecipe.authorFname = results[0].fname;
+        newRecipe.authorLname = results[0].lname;
+      }
+      if(results[1].status !== "success") {
+        newRecipe.categoryName = "Unknown";
+      } else {
+        newRecipe.categoryName = results[1].name;
+      }
+      
+      return newRecipe;
+    });
+
+    const recipeData = await Promise.all(recipePromises);
+
+    return { status: "success", numRecipes: numRecipes, data: recipeData };
   } else {
     return { status: "failure" };
   }
 }
 
-async function getRandomRecipe() {
-  // Perform query
-  const query = "SELECT rec_id,recipe_name FROM recipes ORDER BY random() LIMIT 1";
-
-  let result = await doQuery(query);
-
-  if(result['status'] == "success") {
-    return { status: "success", data: result['data']['rows'][0] };
-  } else {
-    return { status: "failure" };
+async function getAuthorName(id) {
+  const result = await doQuery("SELECT fname, lname FROM users WHERE user_id=$1", [id]);
+  if(result.status !== "success") {
+    console.error("[getAuthorName] Error retrieving author from DB");
+    return { status: "failure", code: 500 };
   }
+    
+  return { 
+    status: "success", 
+    code: 200,
+    fname: result.data.rows[0].fname,
+    lname: result.data.rows[0].lname
+  };
 }
 
 async function getAuthorNames(ids) {
@@ -233,6 +260,19 @@ async function getAuthorNames(ids) {
   }
 
   return { status: "success", data: authors };
+}
+
+async function getRandomRecipe() {
+  // Perform query
+  const query = "SELECT rec_id,recipe_name FROM recipes ORDER BY random() LIMIT 1";
+
+  let result = await doQuery(query);
+
+  if(result['status'] == "success") {
+    return { status: "success", data: result['data']['rows'][0] };
+  } else {
+    return { status: "failure" };
+  }
 }
 
 async function searchDB(search) {

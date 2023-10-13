@@ -107,7 +107,7 @@ module.exports = (app) => {
             let result = await get.getAuthorNames(ids);
             res.send(result);
         }
-    })
+    });
 
     app.get("/api/get/random", async (req, res) => {
         console.log("[/api/get/random] Received request for random recipe");
